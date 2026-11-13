@@ -73,7 +73,7 @@
             층별 적정기준 (장)
           </button>
           <button type="button" id="btn-reset-all" class="px-3 py-2 text-xs font-semibold bg-rose-900/70 hover:bg-rose-800 text-rose-100 rounded-xl border border-rose-700 transition">
-            전체 초기화 (빈칸)
+            전체 초기화
           </button>
         </div>
       </div>
@@ -82,11 +82,11 @@
       <div class="flex space-x-1.5 border-t border-slate-800 py-2.5 overflow-x-auto">
         <button type="button" data-step="1" class="step-tab px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-blue-600 text-white shadow flex items-center space-x-2 whitespace-nowrap transition">
           <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">1</span>
-          <span>전일 마감 잔여 재고</span>
+          <span>전일 잔여 재고 작성</span>
         </button>
         <button type="button" data-step="2" class="step-tab px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl text-slate-300 hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap transition">
           <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-xs">2</span>
-          <span>당일 입고량 & 정비 객실</span>
+          <span>린넨 입고량 & 정비 객실 작성</span>
         </button>
         <button type="button" data-step="3" class="step-tab px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl text-slate-300 hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap transition">
           <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-xs">3</span>
@@ -132,8 +132,7 @@
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center space-x-2">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 1. 전일 마감 잔여 재고 입력 (7F ~ 13F)</h1>
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">단위: 장</span>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 1. 전일 잔여 재고 입력</h1>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             묶음 계산 없이 창고에 남아있는 낱개 <b>'장 수'</b>를 그대로 입력해 주세요. (빈칸은 0장으로 계산됩니다)
@@ -152,7 +151,7 @@
     <section id="section-step-2" class="hidden space-y-5">
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 2. 당일 중앙 세탁 입고량(장) 및 정비 객실 수</h1>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 2. 린넨 입고량 및 정비 객실 수</h1>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">입고 수량을 <b>'장'</b> 단위로 입력하고 각 층의 당일 정비 객실 수를 입력하세요.</p>
         </div>
         <div class="flex items-center space-x-2">
@@ -169,8 +168,7 @@
         <!-- 좌측: 당일 세탁 입고량 (장 단위) -->
         <div class="lg:col-span-6 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
           <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 class="font-bold text-base text-slate-900">당일 중앙 세탁 입고량 (장 단위)</h2>
-            <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">낱개 장수 직접 입력</span>
+            <h2 class="font-bold text-base text-slate-900">린넨 입고량 (장)</h2>
           </div>
           <div id="step2-delivery-list" class="space-y-4"></div>
         </div>
@@ -186,7 +184,7 @@
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
-                    <th class="p-3">층 (총 객실)</th>
+                    <th class="p-3">층</th>
                     <th class="p-3">당일 정비 객실 수</th>
                     <th class="p-3 text-right">정비 가동률</th>
                   </tr>
@@ -234,7 +232,7 @@
 
       <!-- 미배분 잔여 수량 요약 배너 (입고 부족 차등 배분 시 표시) -->
       <div id="unallocated-banner" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
-        <p class="font-bold text-amber-800">⚠️ 입고 부족 품목 차등 배분 및 미배분 잔여 장수 안내</p>
+        <p class="font-bold text-amber-800">⚠️ 부족 린넨 차등 배분 및 미배분 잔여 장수 안내</p>
         <div id="unallocated-details" class="flex flex-wrap gap-2 pt-1"></div>
       </div>
 
@@ -653,7 +651,7 @@
 
         const statusBadge = document.getElementById('kpi-supply-status');
         if (hasAnyShortage) {
-          statusBadge.textContent = '입고 부족 품목 비례 차등 배분됨';
+          statusBadge.textContent = '부족 린넨 차등 배분';
           statusBadge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800';
         } else {
           statusBadge.textContent = '전 품목 적정 수량 공급';
