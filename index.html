@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinenFlow - 호텔 하우스키핑 린넨 스마트 자동 배분 계산기 (장 단위 전용)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      margin: 0;
+      padding: 0;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    .qh-highlight-badge {
+      background-color: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .qh-solid-badge {
+      background-color: #d97706;
+      color: #ffffff;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #ffffff; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- 상단 네비게이션 헤더 -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-lg no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between py-3 gap-3">
+        <!-- 브랜드 타이틀 -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-extrabold text-lg tracking-tight shadow">
+            LF
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-lg tracking-tight">LinenFlow</span>
+              <span class="text-[11px] bg-blue-900/80 text-blue-200 border border-blue-700 px-2 py-0.5 rounded-full font-semibold">100% 장 단위 웹 계산기</span>
+            </div>
+            <p class="text-xs text-slate-400">호텔 하우스키핑 린넨 스마트 자동 배분 (7F ~ 13F)</p>
+          </div>
+        </div>
+
+        <!-- 우측 컨트롤 -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="btn-toggle-target" class="px-3 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition">
+            층별 적정기준 (장)
+          </button>
+          <button type="button" id="btn-reset-all" class="px-3 py-2 text-xs font-semibold bg-rose-900/70 hover:bg-rose-800 text-rose-100 rounded-xl border border-rose-700 transition">
+            전체 초기화 (빈칸)
+          </button>
+        </div>
+      </div>
+
+      <!-- 3단계 스텝 탭 -->
+      <div class="flex space-x-1.5 border-t border-slate-800 py-2.5 overflow-x-auto">
+        <button type="button" data-step="1" class="step-tab px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-blue-600 text-white shadow flex items-center space-x-2 whitespace-nowrap transition">
+          <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">1</span>
+          <span>전일 마감 잔여 재고</span>
+        </button>
+        <button type="button" data-step="2" class="step-tab px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl text-slate-300 hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap transition">
+          <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-xs">2</span>
+          <span>당일 입고량 & 정비 객실</span>
+        </button>
+        <button type="button" data-step="3" class="step-tab px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl text-slate-300 hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap transition">
+          <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-xs">3</span>
+          <span>스마트 배분 리포트</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 안내 바 -->
+  <div class="bg-white border-b border-slate-200 py-2 px-4 text-xs text-slate-600 overflow-x-auto no-print">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
+      <span class="font-bold text-slate-800">운영 기준:</span>
+      <span class="px-2 py-0.5 bg-slate-100 rounded-md">7F~10F: <b>58객실</b> (핸드타월 제외)</span>
+      <span class="px-2 py-0.5 bg-slate-100 rounded-md">11F~13F: <b>56객실</b> (핸드타월 포함)</span>
+    </div>
+  </div>
+
+  <!-- 알림 메시지 토스트 -->
+  <div id="toast-box" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs sm:text-sm font-semibold px-4 py-3 rounded-xl shadow-xl transition-all duration-300 opacity-0 translate-y-6 pointer-events-none">
+    메시지
+  </div>
+
+  <!-- 메인 콘텐츠 영역 -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 층별 기본 적정 수량 기준 패널 (장 단위) -->
+    <section id="panel-target-config" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-blue-200">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900">층별 기본 적정 재고 기준 (장 단위)</h2>
+          <p class="text-xs text-slate-500">수정 시 모든 층의 필요 장수 계산에 실시간으로 반영됩니다.</p>
+        </div>
+        <button type="button" id="btn-close-target" class="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">
+          닫기
+        </button>
+      </div>
+      <div id="target-inputs-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mt-4"></div>
+    </section>
+
+    <!-- STEP 1: 전일 PM 마감 잔여 재고 입력 (장 단위) -->
+    <section id="section-step-1" class="space-y-5">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 1. 전일 마감 잔여 재고 입력 (7F ~ 13F)</h1>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">단위: 장</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            묶음 계산 없이 창고에 남아있는 낱개 <b>'장 수'</b>를 그대로 입력해 주세요. (빈칸은 0장으로 계산됩니다)
+          </p>
+        </div>
+        <button type="button" id="btn-next-to-2" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow transition whitespace-nowrap">
+          다음: 당일 입고·정비 객실 입력 →
+        </button>
+      </div>
+
+      <!-- 7층 ~ 13층 재고 카드 그리드 -->
+      <div id="step1-floors-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- STEP 2: 당일 입고량(장) 및 층별 정비 객실 수 -->
+    <section id="section-step-2" class="hidden space-y-5">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 2. 당일 중앙 세탁 입고량(장) 및 정비 객실 수</h1>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">입고 수량을 <b>'장'</b> 단위로 입력하고 각 층의 당일 정비 객실 수를 입력하세요.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button type="button" id="btn-back-to-1" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold rounded-xl transition">
+            ← 이전 단계
+          </button>
+          <button type="button" id="btn-next-to-3" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow transition">
+            스마트 배분 리포트 보기 →
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 좌측: 당일 세탁 입고량 (장 단위) -->
+        <div class="lg:col-span-6 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 class="font-bold text-base text-slate-900">당일 중앙 세탁 입고량 (장 단위)</h2>
+            <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">낱개 장수 직접 입력</span>
+          </div>
+          <div id="step2-delivery-list" class="space-y-4"></div>
+        </div>
+
+        <!-- 우측: 7F ~ 13F 층별 당일 정비 객실 수 -->
+        <div class="lg:col-span-6 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between space-y-5">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 class="font-bold text-base text-slate-900">층별 당일 정비 객실 수</h2>
+              <span class="text-xs text-slate-500">정비 객실 비율에 따른 수요 산출</span>
+            </div>
+            <div class="mt-4 overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
+                    <th class="p-3">층 (총 객실)</th>
+                    <th class="p-3">당일 정비 객실 수</th>
+                    <th class="p-3 text-right">정비 가동률</th>
+                  </tr>
+                </thead>
+                <tbody id="step2-workload-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-xs text-blue-900 space-y-1.5">
+            <p class="font-bold">💡 장 단위 스마트 배분 로직 안내</p>
+            <p>• 각 층의 <b>필요 장수 = (정비 객실 반영 적정 수량) - (전일 잔여 재고 장수)</b>로 계산됩니다.</p>
+            <p>• 입고된 총 장수가 전층 필요 장수 이상이면 <b>필요한 장수 전량</b>을 배분합니다.</p>
+            <p>• 입고량이 부족할 경우 각 층의 필요 비율에 따라 <b>장 단위 정수(`Math.floor`)</b>로 차등 배분하며, 미배분 잔여 장수는 리포트 상단에 표시됩니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: 스마트 배분 리포트 (장 단위 불출 지시서) -->
+    <section id="section-step-3" class="hidden space-y-5">
+      <!-- 상단 요약 KPI -->
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <span class="text-xs font-bold text-slate-400">전층 총 정비 객실</span>
+          <div class="mt-1 flex items-baseline space-x-1">
+            <span id="kpi-total-rooms" class="text-2xl sm:text-3xl font-extrabold text-slate-900">0</span>
+            <span class="text-xs text-slate-500">/ 400실</span>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <span class="text-xs font-bold text-slate-400">공급 상태 진단</span>
+          <div class="mt-2">
+            <span id="kpi-supply-status" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800">적정 공급 가능</span>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 col-span-2 lg:col-span-1">
+          <span class="text-xs font-bold text-slate-400">층별 불출 완료율</span>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span id="kpi-done-count" class="text-2xl sm:text-3xl font-extrabold text-emerald-600">0 / 7</span>
+            <span id="kpi-done-percent" class="text-xs font-bold text-slate-500">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 미배분 잔여 수량 요약 배너 (입고 부족 차등 배분 시 표시) -->
+      <div id="unallocated-banner" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+        <p class="font-bold text-amber-800">⚠️ 입고 부족 품목 차등 배분 및 미배분 잔여 장수 안내</p>
+        <div id="unallocated-details" class="flex flex-wrap gap-2 pt-1"></div>
+      </div>
+
+      <!-- 리포트 컨트롤 바 -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900">Step 3. 층별 스마트 배분 리포트 (불출 지시서)</h1>
+          <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+            전 품목이 직관적인 <b>'장'</b> 단위로 계산되며, <span class="font-bold text-amber-700">Q·H 시트 및 커버는 주황색 강조 배지</span>로 표시됩니다.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 no-print">
+          <button type="button" id="btn-back-to-2" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+            ← 입력 수정
+          </button>
+          <button type="button" id="btn-copy-summary" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+            불출 내역 복사
+          </button>
+          <button type="button" id="btn-print" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition">
+            인쇄하기
+          </button>
+        </div>
+      </div>
+
+      <!-- 전층 한눈에 보기 요약 테이블 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+          <h2 class="font-bold text-sm sm:text-base text-slate-900">전층 품목별 불출 요약표 (단위: 장)</h2>
+          <span class="text-xs text-slate-400">가로 스크롤 가능</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-center border-collapse text-xs">
+            <thead>
+              <tr id="summary-table-head" class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200"></tr>
+            </thead>
+            <tbody id="summary-table-body" class="divide-y divide-slate-100"></tbody>
+            <tfoot id="summary-table-foot" class="bg-slate-50 font-extrabold text-slate-900 border-t-2 border-slate-200"></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- 층별 상세 불출 카드 리스트 -->
+      <div id="step3-report-list" class="space-y-4"></div>
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 no-print">
+    LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기 (장 단위 전용)
+  </footer>
+
+  <script>
+    (function () {
+      // 1. 호텔 층수 및 객실 수 상수 정의 (7~10층: 58실 핸드타월 제외, 11~13층: 56실 핸드타월 포함)
+      const FLOOR_CONFIG = [
+        { floor: 7,  rooms: 58, hasHandTowel: false },
+        { floor: 8,  rooms: 58, hasHandTowel: false },
+        { floor: 9,  rooms: 58, hasHandTowel: false },
+        { floor: 10, rooms: 58, hasHandTowel: false },
+        { floor: 11, rooms: 56, hasHandTowel: true },
+        { floor: 12, rooms: 56, hasHandTowel: true },
+        { floor: 13, rooms: 56, hasHandTowel: true }
+      ];
+
+      // 2. 린넨 품목 마스터 (100% '장' 단위 기준)
+      const LINEN_ITEMS = [
+        { key: 'sheet-S',    name: 'S 시트',     shortName: 'S시트',   category: 'sheet', defaultTarget: 40,  isQH: false, needHandTowel: false },
+        { key: 'sheet-K',    name: 'K 시트',     shortName: 'K시트',   category: 'sheet', defaultTarget: 35,  isQH: false, needHandTowel: false },
+        { key: 'sheet-Q',    name: 'Q 시트',     shortName: 'Q시트',   category: 'sheet', defaultTarget: 5,   isQH: true,  needHandTowel: false },
+        { key: 'sheet-H',    name: 'H 시트',     shortName: 'H시트',   category: 'sheet', defaultTarget: 10,  isQH: true,  needHandTowel: false },
+        { key: 'cover-S',    name: 'S 커버',     shortName: 'S커버',   category: 'cover', defaultTarget: 40,  isQH: false, needHandTowel: false },
+        { key: 'cover-K',    name: 'K 커버',     shortName: 'K커버',   category: 'cover', defaultTarget: 35,  isQH: false, needHandTowel: false },
+        { key: 'cover-Q',    name: 'Q 커버',     shortName: 'Q커버',   category: 'cover', defaultTarget: 5,   isQH: true,  needHandTowel: false },
+        { key: 'cover-H',    name: 'H 커버',     shortName: 'H커버',   category: 'cover', defaultTarget: 10,  isQH: true,  needHandTowel: false },
+        { key: 'pillowSlip', name: '베개커버',   shortName: '베개',    category: 'other', defaultTarget: 240, isQH: false, needHandTowel: false },
+        { key: 'bathTowel',  name: '배스타월',   shortName: '배스',    category: 'other', defaultTarget: 60,  isQH: false, needHandTowel: false },
+        { key: 'faceTowel',  name: '페이스타월', shortName: '페이스',  category: 'other', defaultTarget: 120, isQH: false, needHandTowel: false },
+        { key: 'handTowel',  name: '핸드타월',   shortName: '핸드',    category: 'other', defaultTarget: 50,  isQH: false, needHandTowel: true  },
+        { key: 'bathMat',    name: '발매트',     shortName: '발매트',  category: 'other', defaultTarget: 60,  isQH: false, needHandTowel: false }
+      ];
+
+      // 애플리케이션 상태 (모든 사용자 입력은 빈칸 null로 초기화)
+      const state = {
+        currentStep: 1,
+        targetStock: {},     // 층별 적정 재고 기준 (장)
+        floors: {},          // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
+        incomingPieces: {}   // 당일 중앙 세탁 입고량 (장)
+      };
+
+      function initializeBlankState() {
+        LINEN_ITEMS.forEach(item => {
+          state.targetStock[item.key] = item.defaultTarget;
+          state.incomingPieces[item.key] = null; // 빈칸 초기화
+        });
+
+        FLOOR_CONFIG.forEach(cfg => {
+          const prevStock = {};
+          LINEN_ITEMS.forEach(item => {
+            if (item.needHandTowel && !cfg.hasHandTowel) return; // 7~10층 핸드타월 제외
+            prevStock[item.key] = null; // 빈칸 초기화
+          });
+
+          state.floors[cfg.floor] = {
+            rooms: cfg.rooms,
+            hasHandTowel: cfg.hasHandTowel,
+            cleaningRooms: null, // 빈칸 초기화
+            completed: false,
+            prevStock: prevStock
+          };
+        });
+      }
+
+      // 토스트 메시지
+      let toastTimer = null;
+      function showToast(message) {
+        const el = document.getElementById('toast-box');
+        if (!el) return;
+        el.textContent = message;
+        el.classList.remove('opacity-0', 'translate-y-6');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          el.classList.add('opacity-0', 'translate-y-6');
+        }, 2400);
+      }
+
+      // 스텝 전환
+      function goToStep(stepNum) {
+        state.currentStep = stepNum;
+        [1, 2, 3].forEach(n => {
+          const sec = document.getElementById(`section-step-${n}`);
+          if (sec) sec.classList.toggle('hidden', n !== stepNum);
+        });
+
+        document.querySelectorAll('.step-tab').forEach(btn => {
+          const s = Number(btn.getAttribute('data-step'));
+          if (s === stepNum) {
+            btn.className = 'step-tab px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-blue-600 text-white shadow flex items-center space-x-2 whitespace-nowrap transition';
+          } else {
+            btn.className = 'step-tab px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl text-slate-300 hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap transition';
+          }
+        });
+
+        if (stepNum === 1) renderStep1();
+        if (stepNum === 2) renderStep2();
+        if (stepNum === 3) renderStep3();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // 층별 적정 기준 설정 패널 렌더링 (장 단위)
+      function renderTargetConfig() {
+        const grid = document.getElementById('target-inputs-grid');
+        if (!grid) return;
+        grid.innerHTML = LINEN_ITEMS.map(item => `
+          <div class="p-2.5 rounded-xl border ${item.isQH ? 'qh-highlight-badge' : 'bg-slate-50 border-slate-200'}">
+            <label class="block text-[11px] font-bold mb-1 ${item.isQH ? 'text-amber-900' : 'text-slate-600'}">
+              ${item.name} ${item.isQH ? '★' : ''}
+            </label>
+            <div class="flex items-center space-x-1">
+              <input type="number" min="0" value="${state.targetStock[item.key]}" data-target-key="${item.key}"
+                class="target-cfg-input w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-right text-slate-900">
+              <span class="text-[11px] text-slate-500">장</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // STEP 1 렌더링: 7F ~ 13F 전일 마감 잔여 재고 (장 단위, 빈칸)
+      function renderStep1() {
+        const container = document.getElementById('step1-floors-grid');
+        if (!container) return;
+
+        container.innerHTML = FLOOR_CONFIG.map(cfg => {
+          const f = cfg.floor;
+          const floorObj = state.floors[f];
+
+          const renderSizeGroup = (category, label) => {
+            const items = LINEN_ITEMS.filter(i => i.category === category);
+            return `
+              <div class="space-y-1.5">
+                <span class="text-[11px] font-bold text-slate-500 block">${label} (장)</span>
+                <div class="grid grid-cols-4 gap-1.5">
+                  ${items.map(item => {
+                    const rawVal = floorObj.prevStock[item.key];
+                    const displayVal = rawVal !== null && rawVal !== '' ? rawVal : '';
+                    const sizeCode = item.key.split('-')[1];
+                    return `
+                      <div class="p-2 rounded-xl border ${item.isQH ? 'qh-highlight-badge' : 'bg-slate-50 border-slate-200'}">
+                        <span class="block text-center text-[11px] font-extrabold ${item.isQH ? 'text-amber-800' : 'text-slate-700'} mb-1">
+                          ${sizeCode}${item.isQH ? '★' : ''}
+                        </span>
+                        <div class="relative">
+                          <input type="number" min="0" placeholder="0" value="${displayVal}"
+                            data-floor="${f}" data-key="${item.key}"
+                            class="prev-stock-input w-full text-center font-bold text-xs bg-white border ${item.isQH ? 'border-amber-300 text-amber-950' : 'border-slate-300 text-slate-900'} rounded-lg py-1.5 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <span class="block text-center mt-1 text-[10px] ${item.isQH ? 'text-amber-700 font-semibold' : 'text-slate-400'}">장</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          };
+
+          const otherItems = LINEN_ITEMS.filter(i => i.category === 'other' && (!i.needHandTowel || cfg.hasHandTowel));
+
+          return `
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-9 h-9 rounded-xl bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center">${f}F</span>
+                  <div>
+                    <h3 class="font-bold text-slate-900 text-base">${f}층 잔여 재고</h3>
+                    <span class="text-xs text-slate-500">총 <b>${cfg.rooms}실</b> ${!cfg.hasHandTowel ? '· 핸드타월 제외' : '· 핸드타월 포함'}</span>
+                  </div>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                  장 단위
+                </span>
+              </div>
+
+              ${renderSizeGroup('sheet', '시트 잔여')}
+              ${renderSizeGroup('cover', '커버 잔여')}
+
+              <div class="space-y-1.5">
+                <span class="text-[11px] font-bold text-slate-500 block">타월 및 매트 잔여 (장)</span>
+                <div class="grid grid-cols-2 gap-2">
+                  ${otherItems.map(item => {
+                    const rawVal = floorObj.prevStock[item.key];
+                    const displayVal = rawVal !== null && rawVal !== '' ? rawVal : '';
+                    return `
+                      <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+                        <span class="text-xs font-semibold text-slate-700">${item.name}</span>
+                        <div class="flex items-center space-x-1">
+                          <input type="number" min="0" placeholder="0" value="${displayVal}"
+                            data-floor="${f}" data-key="${item.key}"
+                            class="prev-stock-input w-14 text-right font-bold text-xs bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <span class="text-[11px] text-slate-400">장</span>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // STEP 2 렌더링: 당일 세탁 입고량(장) & 층별 정비 객실 수 (빈칸)
+      function renderStep2() {
+        const deliveryContainer = document.getElementById('step2-delivery-list');
+        if (deliveryContainer) {
+          const groups = [
+            { title: '시트 입고량 (장)', items: LINEN_ITEMS.filter(i => i.category === 'sheet') },
+            { title: '커버 입고량 (장)', items: LINEN_ITEMS.filter(i => i.category === 'cover') },
+            { title: '타월 및 매트 입고량 (장)', items: LINEN_ITEMS.filter(i => i.category === 'other') }
+          ];
+
+          deliveryContainer.innerHTML = groups.map(grp => `
+            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2.5">
+              <span class="text-xs font-bold text-slate-700 block">${grp.title}</span>
+              <div class="grid grid-cols-2 gap-2.5">
+                ${grp.items.map(item => {
+                  const rawVal = state.incomingPieces[item.key];
+                  const displayVal = rawVal !== null && rawVal !== '' ? rawVal : '';
+                  return `
+                    <div class="bg-white p-2.5 rounded-xl border ${item.isQH ? 'qh-highlight-badge' : 'border-slate-200'}">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold ${item.isQH ? 'text-amber-800' : 'text-slate-700'}">${item.name}${item.isQH ? '★' : ''}</span>
+                        ${item.needHandTowel ? '<span class="text-[10px] text-blue-600 font-semibold">11~13F 전용</span>' : ''}
+                      </div>
+                      <div class="flex items-center space-x-1.5">
+                        <input type="number" min="0" placeholder="0" value="${displayVal}" data-delivery-key="${item.key}"
+                          class="incoming-piece-input w-full text-right font-extrabold text-sm bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-xs font-semibold text-slate-500">장</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `).join('');
+        }
+
+        const tbody = document.getElementById('step2-workload-tbody');
+        if (tbody) {
+          tbody.innerHTML = FLOOR_CONFIG.map(cfg => {
+            const f = cfg.floor;
+            const fl = state.floors[f];
+            const cleanVal = fl.cleaningRooms !== null && fl.cleaningRooms !== '' ? Number(fl.cleaningRooms) : '';
+            const ratio = cfg.rooms > 0 && cleanVal !== '' ? Math.round((cleanVal / cfg.rooms) * 100) : 0;
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-900">
+                  ${f}층 <span class="text-xs font-normal text-slate-400">(${cfg.rooms}실)</span>
+                </td>
+                <td class="p-3">
+                  <div class="flex items-center space-x-1.5">
+                    <input type="number" min="0" max="${cfg.rooms}" placeholder="0" value="${cleanVal}"
+                      data-floor="${f}"
+                      class="workload-room-input w-24 text-center font-bold text-sm border border-slate-300 rounded-lg py-1 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <span class="text-xs text-slate-500">실</span>
+                  </div>
+                </td>
+                <td class="p-3 text-right">
+                  <span id="workload-ratio-${f}" class="px-2 py-0.5 rounded-md text-xs font-bold ${ratio >= 50 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}">
+                    ${ratio}%
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // 100% 장 단위 스마트 배분 계산 엔진
+      function calculateDistribution() {
+        const floorAllocations = {};
+        FLOOR_CONFIG.forEach(cfg => { floorAllocations[cfg.floor] = {}; });
+
+        const itemTotals = {};
+        const shortages = [];
+        let hasAnyShortage = false;
+
+        LINEN_ITEMS.forEach(item => {
+          const key = item.key;
+          const baseTarget = Number(state.targetStock[key]) || 0;
+          const incomingTotalPieces = Number(state.incomingPieces[key]) || 0;
+
+          const demands = {};
+          let totalDemandPieces = 0;
+
+          FLOOR_CONFIG.forEach(cfg => {
+            const f = cfg.floor;
+            if (item.needHandTowel && !cfg.hasHandTowel) return; // 7~10층 핸드타월 배분 제외
+
+            const fl = state.floors[f];
+            const prev = Number(fl.prevStock[key]) || 0;
+            const cleanRooms = Number(fl.cleaningRooms) || 0;
+            const roomRatio = cfg.rooms > 0 ? cleanRooms / cfg.rooms : 0;
+
+            // 정비 객실 비율을 반영한 목표 적정 재고 (장)
+            const adjustedTarget = Math.round(baseTarget * (0.85 + roomRatio * 0.35));
+            const needPieces = Math.max(0, adjustedTarget - prev);
+
+            demands[f] = needPieces;
+            totalDemandPieces += needPieces;
+          });
+
+          let totalAllocated = 0;
+
+          if (totalDemandPieces === 0) {
+            FLOOR_CONFIG.forEach(cfg => {
+              if (item.needHandTowel && !cfg.hasHandTowel) return;
+              floorAllocations[cfg.floor][key] = { pieces: 0, demandPieces: 0 };
+            });
+          } else if (incomingTotalPieces >= totalDemandPieces) {
+            // 입고량이 충분하면 각 층 필요 장수 전량 배정
+            FLOOR_CONFIG.forEach(cfg => {
+              if (item.needHandTowel && !cfg.hasHandTowel) return;
+              const pcs = demands[cfg.floor];
+              floorAllocations[cfg.floor][key] = { pieces: pcs, demandPieces: pcs };
+              totalAllocated += pcs;
+            });
+          } else {
+            // 입고량이 부족하면 필요 비율에 따라 Math.floor 기반 장 단위 비례 배분
+            hasAnyShortage = true;
+            FLOOR_CONFIG.forEach(cfg => {
+              if (item.needHandTowel && !cfg.hasHandTowel) return;
+              const share = demands[cfg.floor] / totalDemandPieces;
+              const allocated = Math.floor(incomingTotalPieces * share);
+              floorAllocations[cfg.floor][key] = {
+                pieces: allocated,
+                demandPieces: demands[cfg.floor]
+              };
+              totalAllocated += allocated;
+            });
+
+            const unallocated = incomingTotalPieces - totalAllocated;
+            shortages.push({
+              name: item.name,
+              incoming: incomingTotalPieces,
+              demand: totalDemandPieces,
+              allocated: totalAllocated,
+              unallocated: unallocated
+            });
+          }
+
+          itemTotals[key] = {
+            totalDemand: totalDemandPieces,
+            totalAllocated: totalAllocated,
+            incoming: incomingTotalPieces
+          };
+        });
+
+        return { floorAllocations, itemTotals, hasAnyShortage, shortages };
+      }
+
+      // STEP 3 렌더링: 스마트 배분 리포트 (100% 장 단위)
+      function renderStep3() {
+        let totalCleaningRooms = 0;
+        let doneCount = 0;
+
+        FLOOR_CONFIG.forEach(cfg => {
+          const fl = state.floors[cfg.floor];
+          totalCleaningRooms += Number(fl.cleaningRooms) || 0;
+          if (fl.completed) doneCount++;
+        });
+
+        const { floorAllocations, itemTotals, hasAnyShortage, shortages } = calculateDistribution();
+
+        document.getElementById('kpi-total-rooms').textContent = totalCleaningRooms;
+        document.getElementById('kpi-done-count').textContent = `${doneCount} / ${FLOOR_CONFIG.length}`;
+        document.getElementById('kpi-done-percent').textContent = `${Math.round((doneCount / FLOOR_CONFIG.length) * 100)}%`;
+
+        const statusBadge = document.getElementById('kpi-supply-status');
+        if (hasAnyShortage) {
+          statusBadge.textContent = '입고 부족 품목 비례 차등 배분됨';
+          statusBadge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800';
+        } else {
+          statusBadge.textContent = '전 품목 적정 수량 공급';
+          statusBadge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800';
+        }
+
+        // 미배분 잔여 장수 배너 처리
+        const unallocBanner = document.getElementById('unallocated-banner');
+        const unallocDetails = document.getElementById('unallocated-details');
+        if (shortages.length > 0 && unallocBanner && unallocDetails) {
+          unallocBanner.classList.remove('hidden');
+          unallocDetails.innerHTML = shortages.map(s => `
+            <span class="bg-white border border-amber-300 px-2.5 py-1 rounded-lg font-medium">
+              <b>${s.name}</b>: 필요 ${s.demand}장 / 입고 ${s.incoming}장 → 배분 ${s.allocated}장 (잔여 미배분 <b>${s.unallocated}장</b>)
+            </span>
+          `).join('');
+        } else if (unallocBanner) {
+          unallocBanner.classList.add('hidden');
+        }
+
+        // 전층 요약 테이블 렌더링
+        const tHead = document.getElementById('summary-table-head');
+        const tBody = document.getElementById('summary-table-body');
+        const tFoot = document.getElementById('summary-table-foot');
+
+        if (tHead && tBody && tFoot) {
+          tHead.innerHTML = `
+            <th class="p-2.5 text-left sticky left-0 bg-slate-50 z-10 border-r border-slate-200">층 (정비)</th>
+            ${LINEN_ITEMS.map(item => `
+              <th class="p-2 whitespace-nowrap ${item.isQH ? 'bg-amber-100 text-amber-900' : ''}">
+                ${item.shortName}${item.isQH ? '★' : ''}
+              </th>
+            `).join('')}
+          `;
+
+          tBody.innerHTML = FLOOR_CONFIG.map(cfg => {
+            const f = cfg.floor;
+            const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 text-left font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-200 whitespace-nowrap">
+                  ${f}F <span class="text-[11px] font-normal text-slate-400">(${cleanRooms}/${cfg.rooms})</span>
+                </td>
+                ${LINEN_ITEMS.map(item => {
+                  if (item.needHandTowel && !cfg.hasHandTowel) {
+                    return `<td class="p-2 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
+                  }
+                  const val = floorAllocations[f][item.key]?.pieces ?? 0;
+                  return `
+                    <td class="p-2 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
+                      ${val}장
+                    </td>
+                  `;
+                }).join('')}
+              </tr>
+            `;
+          }).join('');
+
+          tFoot.innerHTML = `
+            <tr>
+              <td class="p-2.5 text-left sticky left-0 bg-slate-50 border-r border-slate-200">합계 (장)</td>
+              ${LINEN_ITEMS.map(item => {
+                const tot = itemTotals[item.key]?.totalAllocated ?? 0;
+                return `
+                  <td class="p-2 whitespace-nowrap ${item.isQH ? 'bg-amber-100 text-amber-900' : 'text-blue-700'}">
+                    ${tot}장
+                  </td>
+                `;
+              }).join('')}
+            </tr>
+          `;
+        }
+
+        // 층별 상세 카드 리스트 렌더링
+        const listEl = document.getElementById('step3-report-list');
+        if (!listEl) return;
+
+        listEl.innerHTML = FLOOR_CONFIG.map(cfg => {
+          const f = cfg.floor;
+          const fl = state.floors[f];
+          const alloc = floorAllocations[f];
+          const cleanRooms = Number(fl.cleaningRooms) || 0;
+
+          const activeItems = LINEN_ITEMS.filter(item => !(item.needHandTowel && !cfg.hasHandTowel));
+
+          return `
+            <div class="bg-white rounded-2xl shadow-sm border ${fl.completed ? 'border-emerald-400 bg-emerald-50/10' : 'border-slate-200'} overflow-hidden">
+              <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                  <span class="w-10 h-10 rounded-xl ${fl.completed ? 'bg-emerald-600' : 'bg-slate-900'} text-white font-extrabold text-base flex items-center justify-center">
+                    ${f}F
+                  </span>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h3 class="font-bold text-slate-900 text-base sm:text-lg">${f}층 불출 지시서</h3>
+                      <span class="text-xs text-slate-400">(${cfg.rooms}실)</span>
+                      ${fl.completed ? '<span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">불출 완료</span>' : ''}
+                    </div>
+                    <p class="text-xs text-slate-500">당일 정비 객실: <b>${cleanRooms}실</b> ${!cfg.hasHandTowel ? '· 핸드타월 제외 층' : '· 핸드타월 포함 층'}</p>
+                  </div>
+                </div>
+
+                <button type="button" data-toggle-done="${f}"
+                  class="no-print px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    fl.completed
+                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                  }">
+                  ${fl.completed ? '✓ 불출 완료됨 (취소)' : '불출 완료 체크'}
+                </button>
+              </div>
+
+              <div class="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                ${activeItems.map(item => {
+                  const data = alloc[item.key] || { pieces: 0, demandPieces: 0 };
+                  const isQH = item.isQH;
+
+                  return `
+                    <div class="rounded-xl p-2.5 border flex flex-col justify-between ${
+                      isQH
+                        ? 'qh-highlight-badge shadow-xs'
+                        : 'bg-slate-50 border-slate-200'
+                    }">
+                      <div class="flex items-center justify-between gap-1">
+                        <span class="text-[11px] font-bold ${isQH ? 'text-amber-900' : 'text-slate-700'} truncate">
+                          ${item.name}
+                        </span>
+                        ${isQH ? '<span class="qh-solid-badge text-[9px] font-extrabold px-1.5 py-0.2 rounded">Q/H</span>' : ''}
+                      </div>
+
+                      <div class="my-1.5 py-1.5 bg-white rounded-lg border ${isQH ? 'border-amber-300' : 'border-slate-200'} text-center">
+                        <span class="text-xl font-extrabold ${isQH ? 'text-amber-600' : 'text-blue-600'}">
+                          ${data.pieces}
+                        </span>
+                        <span class="text-xs font-bold ${isQH ? 'text-amber-800' : 'text-slate-600'} ml-0.5">
+                          장
+                        </span>
+                      </div>
+
+                      <span class="text-[10px] ${isQH ? 'text-amber-800 font-semibold' : 'text-slate-400'} text-center block">
+                        필요량 ${data.demandPieces}장
+                      </span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 클립보드 복사 (장 단위 불출 요약)
+      function copyDistributionSummary() {
+        const { floorAllocations } = calculateDistribution();
+        const lines = ['[LinenFlow 7F~13F 린넨 불출 지시서 (단위: 장)]'];
+
+        FLOOR_CONFIG.forEach(cfg => {
+          const f = cfg.floor;
+          const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
+          const activeItems = LINEN_ITEMS.filter(item => !(item.needHandTowel && !cfg.hasHandTowel));
+          const itemStr = activeItems
+            .map(item => `${item.name} ${floorAllocations[f][item.key]?.pieces ?? 0}장`)
+            .join(', ');
+          lines.push(`• ${f}층 (정비 ${cleanRooms}실): ${itemStr}`);
+        });
+
+        const text = lines.join('\n');
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showToast('전층 불출 내역(장 단위)이 클립보드에 복사되었습니다.');
+        } catch (err) {
+          showToast('복사에 실패했습니다. 인쇄하기를 이용해 주세요.');
+        }
+        document.body.removeChild(textarea);
+      }
+
+      // 이벤트 리스너 등록
+      function bindEvents() {
+        document.addEventListener('click', (e) => {
+          const stepBtn = e.target.closest('.step-tab');
+          if (stepBtn) {
+            goToStep(Number(stepBtn.getAttribute('data-step')));
+            return;
+          }
+
+          const doneBtn = e.target.closest('[data-toggle-done]');
+          if (doneBtn) {
+            const f = Number(doneBtn.getAttribute('data-toggle-done'));
+            state.floors[f].completed = !state.floors[f].completed;
+            renderStep3();
+            showToast(`${f}층 불출 상태가 ${state.floors[f].completed ? '완료' : '대기'}로 변경되었습니다.`);
+            return;
+          }
+        });
+
+        document.addEventListener('input', (e) => {
+          const target = e.target;
+
+          // Step 1: 전일 잔여 재고 (장 단위)
+          if (target.classList.contains('prev-stock-input')) {
+            const f = Number(target.getAttribute('data-floor'));
+            const key = target.getAttribute('data-key');
+            if (target.value === '') {
+              state.floors[f].prevStock[key] = null;
+            } else {
+              state.floors[f].prevStock[key] = Math.max(0, parseInt(target.value, 10) || 0);
+            }
+            return;
+          }
+
+          // Step 2: 당일 입고량 (장 단위)
+          if (target.classList.contains('incoming-piece-input')) {
+            const key = target.getAttribute('data-delivery-key');
+            if (target.value === '') {
+              state.incomingPieces[key] = null;
+            } else {
+              state.incomingPieces[key] = Math.max(0, parseInt(target.value, 10) || 0);
+            }
+            return;
+          }
+
+          // Step 2: 층별 정비 객실 수
+          if (target.classList.contains('workload-room-input')) {
+            const f = Number(target.getAttribute('data-floor'));
+            const maxRooms = state.floors[f].rooms;
+            if (target.value === '') {
+              state.floors[f].cleaningRooms = null;
+            } else {
+              let val = Math.max(0, parseInt(target.value, 10) || 0);
+              if (val > maxRooms) {
+                val = maxRooms;
+                target.value = val;
+              }
+              state.floors[f].cleaningRooms = val;
+            }
+
+            const cleanVal = Number(state.floors[f].cleaningRooms) || 0;
+            const ratio = maxRooms > 0 ? Math.round((cleanVal / maxRooms) * 100) : 0;
+            const ratioSpan = document.getElementById(`workload-ratio-${f}`);
+            if (ratioSpan) {
+              ratioSpan.textContent = `${ratio}%`;
+              ratioSpan.className = `px-2 py-0.5 rounded-md text-xs font-bold ${ratio >= 50 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`;
+            }
+            return;
+          }
+
+          // 적정 기준 수정 (장 단위)
+          if (target.classList.contains('target-cfg-input')) {
+            const key = target.getAttribute('data-target-key');
+            state.targetStock[key] = Math.max(0, parseInt(target.value, 10) || 0);
+            if (state.currentStep === 3) renderStep3();
+          }
+        });
+
+        document.getElementById('btn-toggle-target').addEventListener('click', () => {
+          const panel = document.getElementById('panel-target-config');
+          panel.classList.toggle('hidden');
+          if (!panel.classList.contains('hidden')) renderTargetConfig();
+        });
+
+        document.getElementById('btn-close-target').addEventListener('click', () => {
+          document.getElementById('panel-target-config').classList.add('hidden');
+        });
+
+        document.getElementById('btn-reset-all').addEventListener('click', () => {
+          initializeBlankState();
+          goToStep(state.currentStep);
+          showToast('모든 입력창이 빈칸으로 초기화되었습니다.');
+        });
+
+        document.getElementById('btn-next-to-2').addEventListener('click', () => goToStep(2));
+        document.getElementById('btn-back-to-1').addEventListener('click', () => goToStep(1));
+        document.getElementById('btn-next-to-3').addEventListener('click', () => goToStep(3));
+        document.getElementById('btn-back-to-2').addEventListener('click', () => goToStep(2));
+        document.getElementById('btn-copy-summary').addEventListener('click', copyDistributionSummary);
+        document.getElementById('btn-print').addEventListener('click', () => window.print());
+      }
+
+      // 초기화 및 초기 화면 렌더링
+      initializeBlankState();
+      bindEvents();
+      renderStep1();
+    })();
+  </script>
+</body>
+</html>
