@@ -257,11 +257,24 @@
         </div>
       </div>
 
-      <!-- 전층 한눈에 보기 요약 테이블 -->
+      <!-- 전층 한눈에 보기 요약 테이블 (장 / 단 단위 토글 포함) -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-          <h2 class="font-bold text-sm sm:text-base text-slate-900">전층 품목별 불출 요약표 (단위: 장)</h2>
-          <span class="text-xs text-slate-400">가로 스크롤 가능</span>
+        <div class="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-2">
+            <h2 id="summary-table-title" class="font-bold text-sm sm:text-base text-slate-900">전층 품목별 불출 요약표 (단위: 장)</h2>
+            <span id="summary-pack-note" class="hidden text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+              1단=10장 (버림) · Q/H는 항상 장 표기
+            </span>
+          </div>
+          <!-- 장 / 단 표기 전환 토글 버튼 -->
+          <div class="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 no-print" role="group" aria-label="요약표 단위 전환">
+            <button type="button" data-summary-unit="piece" class="summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition">
+              장 단위
+            </button>
+            <button type="button" data-summary-unit="pack" class="summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">
+              단 단위
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-center border-collapse text-xs">
@@ -281,7 +294,7 @@
   </main>
 
   <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 no-print">
-    LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기 (장 단위 전용)
+    LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기
   </footer>
 
   <script>
@@ -297,15 +310,15 @@
         { floor: 13, rooms: 56, hasHandTowel: true }
       ];
 
-      // 2. 린넨 품목 마스터 (100% '장' 단위 기준)
+      // 2. 린넨 품목 마스터 (시트·커버 모두 반드시 S, Q, K, H 순서 준수)
       const LINEN_ITEMS = [
         { key: 'sheet-S',    name: 'S 시트',     shortName: 'S시트',   category: 'sheet', defaultTarget: 40,  isQH: false, needHandTowel: false },
-        { key: 'sheet-K',    name: 'K 시트',     shortName: 'K시트',   category: 'sheet', defaultTarget: 35,  isQH: false, needHandTowel: false },
         { key: 'sheet-Q',    name: 'Q 시트',     shortName: 'Q시트',   category: 'sheet', defaultTarget: 5,   isQH: true,  needHandTowel: false },
+        { key: 'sheet-K',    name: 'K 시트',     shortName: 'K시트',   category: 'sheet', defaultTarget: 35,  isQH: false, needHandTowel: false },
         { key: 'sheet-H',    name: 'H 시트',     shortName: 'H시트',   category: 'sheet', defaultTarget: 10,  isQH: true,  needHandTowel: false },
         { key: 'cover-S',    name: 'S 커버',     shortName: 'S커버',   category: 'cover', defaultTarget: 40,  isQH: false, needHandTowel: false },
-        { key: 'cover-K',    name: 'K 커버',     shortName: 'K커버',   category: 'cover', defaultTarget: 35,  isQH: false, needHandTowel: false },
         { key: 'cover-Q',    name: 'Q 커버',     shortName: 'Q커버',   category: 'cover', defaultTarget: 5,   isQH: true,  needHandTowel: false },
+        { key: 'cover-K',    name: 'K 커버',     shortName: 'K커버',   category: 'cover', defaultTarget: 35,  isQH: false, needHandTowel: false },
         { key: 'cover-H',    name: 'H 커버',     shortName: 'H커버',   category: 'cover', defaultTarget: 10,  isQH: true,  needHandTowel: false },
         { key: 'pillowSlip', name: '베개커버',   shortName: '베개',    category: 'other', defaultTarget: 240, isQH: false, needHandTowel: false },
         { key: 'bathTowel',  name: '배스타월',   shortName: '배스',    category: 'other', defaultTarget: 60,  isQH: false, needHandTowel: false },
@@ -314,12 +327,15 @@
         { key: 'bathMat',    name: '발매트',     shortName: '발매트',  category: 'other', defaultTarget: 60,  isQH: false, needHandTowel: false }
       ];
 
+      const PACK_SIZE = 10; // 1단 = 10장 기준 (Q/H 제외)
+
       // 애플리케이션 상태 (모든 사용자 입력은 빈칸 null로 초기화)
       const state = {
         currentStep: 1,
-        targetStock: {},     // 층별 적정 재고 기준 (장)
-        floors: {},          // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
-        incomingPieces: {}   // 당일 중앙 세탁 입고량 (장)
+        summaryUnit: 'piece', // 'piece' (장) | 'pack' (단)
+        targetStock: {},      // 층별 적정 재고 기준 (장)
+        floors: {},           // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
+        incomingPieces: {}    // 당일 중앙 세탁 입고량 (장)
       };
 
       function initializeBlankState() {
@@ -381,7 +397,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
-      // 층별 적정 기준 설정 패널 렌더링 (장 단위)
+      // 층별 적정 기준 설정 패널 렌더링 (S, Q, K, H 순서)
       function renderTargetConfig() {
         const grid = document.getElementById('target-inputs-grid');
         if (!grid) return;
@@ -391,15 +407,16 @@
               ${item.name} ${item.isQH ? '★' : ''}
             </label>
             <div class="flex items-center space-x-1">
-              <input type="number" inputmode="numeric" min="0" value="${state.targetStock[item.key]}" data-target-key="${item.key}"
+              <input type="number" inputmode="numeric" enterkeyhint="next" min="0" value="${state.targetStock[item.key]}" data-target-key="${item.key}"
                 class="target-cfg-input w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-base font-bold text-right text-slate-900">
               <span class="text-[11px] text-slate-500 shrink-0">장</span>
             </div>
           </div>
         `).join('');
+        updateEnterKeyHints();
       }
 
-      // STEP 1 렌더링: 7F ~ 13F 전일 마감 잔여 재고 (장 단위, 빈칸)
+      // STEP 1 렌더링: 7F ~ 13F 전일 마감 잔여 재고 (S, Q, K, H 순서)
       function renderStep1() {
         const container = document.getElementById('step1-floors-grid');
         if (!container) return;
@@ -424,7 +441,7 @@
                           ${sizeCode}${item.isQH ? '★' : ''}
                         </span>
                         <div class="relative">
-                          <input type="number" inputmode="numeric" min="0" placeholder="0" value="${displayVal}"
+                          <input type="number" inputmode="numeric" enterkeyhint="next" min="0" placeholder="0" value="${displayVal}"
                             data-floor="${f}" data-key="${item.key}"
                             class="prev-stock-input w-full text-center font-bold text-base bg-white border ${item.isQH ? 'border-amber-300 text-amber-950' : 'border-slate-300 text-slate-900'} rounded-lg py-1 px-0.5 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
@@ -467,7 +484,7 @@
                       <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 gap-1">
                         <span class="text-xs font-semibold text-slate-700 truncate">${item.name}</span>
                         <div class="flex items-center space-x-1 shrink-0">
-                          <input type="number" inputmode="numeric" min="0" placeholder="0" value="${displayVal}"
+                          <input type="number" inputmode="numeric" enterkeyhint="next" min="0" placeholder="0" value="${displayVal}"
                             data-floor="${f}" data-key="${item.key}"
                             class="prev-stock-input w-14 text-right font-bold text-base bg-white border border-slate-300 rounded-lg px-1.5 py-1 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                           <span class="text-[11px] text-slate-400">장</span>
@@ -480,9 +497,10 @@
             </div>
           `;
         }).join('');
+        updateEnterKeyHints();
       }
 
-      // STEP 2 렌더링: 당일 세탁 입고량(장) & 층별 정비 객실 수 (빈칸)
+      // STEP 2 렌더링: 당일 세탁 입고량(장) & 층별 정비 객실 수 (S, Q, K, H 순서)
       function renderStep2() {
         const deliveryContainer = document.getElementById('step2-delivery-list');
         if (deliveryContainer) {
@@ -506,7 +524,7 @@
                         ${item.needHandTowel ? '<span class="text-[10px] text-blue-600 font-semibold">11~13F 전용</span>' : ''}
                       </div>
                       <div class="flex items-center space-x-1.5">
-                        <input type="number" inputmode="numeric" min="0" placeholder="0" value="${displayVal}" data-delivery-key="${item.key}"
+                        <input type="number" inputmode="numeric" enterkeyhint="next" min="0" placeholder="0" value="${displayVal}" data-delivery-key="${item.key}"
                           class="incoming-piece-input w-full text-right font-extrabold text-base bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <span class="text-xs font-semibold text-slate-500 shrink-0">장</span>
                       </div>
@@ -532,7 +550,7 @@
                 </td>
                 <td class="p-3">
                   <div class="flex items-center space-x-1.5">
-                    <input type="number" inputmode="numeric" min="0" max="${cfg.rooms}" placeholder="0" value="${cleanVal}"
+                    <input type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${cfg.rooms}" placeholder="0" value="${cleanVal}"
                       data-floor="${f}"
                       class="workload-room-input w-24 text-center font-bold text-base border border-slate-300 rounded-lg py-1 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <span class="text-xs text-slate-500">실</span>
@@ -547,6 +565,7 @@
             `;
           }).join('');
         }
+        updateEnterKeyHints();
       }
 
       // 100% 장 단위 스마트 배분 계산 엔진
@@ -632,7 +651,39 @@
         return { floorAllocations, itemTotals, hasAnyShortage, shortages };
       }
 
-      // STEP 3 렌더링: 스마트 배분 리포트 (100% 장 단위)
+      // 요약표 셀 포맷 헬퍼 (장 단위 vs 단 단위 토글 반영, Q/H는 항상 장 단위)
+      function formatSummaryValue(pieces, item) {
+        if (state.summaryUnit === 'pack' && !item.isQH) {
+          return `${Math.floor(pieces / PACK_SIZE)}단`;
+        }
+        return `${pieces}장`;
+      }
+
+      // 요약표 토글 버튼 UI 동기화
+      function updateSummaryUnitToggleUI() {
+        const titleEl = document.getElementById('summary-table-title');
+        const noteEl = document.getElementById('summary-pack-note');
+
+        if (titleEl) {
+          titleEl.textContent = state.summaryUnit === 'pack'
+            ? '전층 품목별 불출 요약표 (단위: 단 / Q·H는 장)'
+            : '전층 품목별 불출 요약표 (단위: 장)';
+        }
+        if (noteEl) {
+          noteEl.classList.toggle('hidden', state.summaryUnit !== 'pack');
+        }
+
+        document.querySelectorAll('.summary-unit-btn').forEach(btn => {
+          const unit = btn.getAttribute('data-summary-unit');
+          if (unit === state.summaryUnit) {
+            btn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition';
+          } else {
+            btn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+          }
+        });
+      }
+
+      // STEP 3 렌더링: 스마트 배분 리포트
       function renderStep3() {
         let totalCleaningRooms = 0;
         let doneCount = 0;
@@ -672,7 +723,10 @@
           unallocBanner.classList.add('hidden');
         }
 
-        // 전층 요약 테이블 렌더링
+        // 요약표 토글 버튼 상태 업데이트
+        updateSummaryUnitToggleUI();
+
+        // 전층 요약 테이블 렌더링 (S, Q, K, H 순서 & 장/단 토글 적용)
         const tHead = document.getElementById('summary-table-head');
         const tBody = document.getElementById('summary-table-body');
         const tFoot = document.getElementById('summary-table-foot');
@@ -699,10 +753,11 @@
                   if (item.needHandTowel && !cfg.hasHandTowel) {
                     return `<td class="p-2 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
                   }
-                  const val = floorAllocations[f][item.key]?.pieces ?? 0;
+                  const rawPieces = floorAllocations[f][item.key]?.pieces ?? 0;
+                  const formatted = formatSummaryValue(rawPieces, item);
                   return `
                     <td class="p-2 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
-                      ${val}장
+                      ${formatted}
                     </td>
                   `;
                 }).join('')}
@@ -712,12 +767,26 @@
 
           tFoot.innerHTML = `
             <tr>
-              <td class="p-2.5 text-left sticky left-0 bg-slate-50 border-r border-slate-200">합계 (장)</td>
+              <td class="p-2.5 text-left sticky left-0 bg-slate-50 border-r border-slate-200">
+                ${state.summaryUnit === 'pack' ? '합계 (단/장)' : '합계 (장)'}
+              </td>
               ${LINEN_ITEMS.map(item => {
-                const tot = itemTotals[item.key]?.totalAllocated ?? 0;
+                let totalDisplay = '';
+                if (state.summaryUnit === 'pack' && !item.isQH) {
+                  // 층별로 버림 산출된 단 수의 합계
+                  const sumPacks = FLOOR_CONFIG.reduce((acc, cfg) => {
+                    if (item.needHandTowel && !cfg.hasHandTowel) return acc;
+                    const pcs = floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
+                    return acc + Math.floor(pcs / PACK_SIZE);
+                  }, 0);
+                  totalDisplay = `${sumPacks}단`;
+                } else {
+                  const tot = itemTotals[item.key]?.totalAllocated ?? 0;
+                  totalDisplay = `${tot}장`;
+                }
                 return `
                   <td class="p-2 whitespace-nowrap ${item.isQH ? 'bg-amber-100 text-amber-900' : 'text-blue-700'}">
-                    ${tot}장
+                    ${totalDisplay}
                   </td>
                 `;
               }).join('')}
@@ -725,7 +794,7 @@
           `;
         }
 
-        // 층별 상세 카드 리스트 렌더링
+        // 층별 상세 카드 리스트 렌더링 (S, Q, K, H 순서)
         const listEl = document.getElementById('step3-report-list');
         if (!listEl) return;
 
@@ -803,17 +872,18 @@
         }).join('');
       }
 
-      // 클립보드 복사 (장 단위 불출 요약)
+      // 클립보드 복사 (현재 선택된 요약표 단위 기준 반영)
       function copyDistributionSummary() {
         const { floorAllocations } = calculateDistribution();
-        const lines = ['[LinenFlow 7F~13F 린넨 불출 지시서 (단위: 장)]'];
+        const unitLabel = state.summaryUnit === 'pack' ? '단위: 단 / Q·H는 장' : '단위: 장';
+        const lines = [`[LinenFlow 7F~13F 린넨 불출 지시서 (${unitLabel})]`];
 
         FLOOR_CONFIG.forEach(cfg => {
           const f = cfg.floor;
           const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
           const activeItems = LINEN_ITEMS.filter(item => !(item.needHandTowel && !cfg.hasHandTowel));
           const itemStr = activeItems
-            .map(item => `${item.name} ${floorAllocations[f][item.key]?.pieces ?? 0}장`)
+            .map(item => `${item.name} ${formatSummaryValue(floorAllocations[f][item.key]?.pieces ?? 0, item)}`)
             .join(', ');
           lines.push(`• ${f}층 (정비 ${cleanRooms}실): ${itemStr}`);
         });
@@ -827,7 +897,7 @@
         textarea.select();
         try {
           document.execCommand('copy');
-          showToast('전층 불출 내역(장 단위)이 클립보드에 복사되었습니다.');
+          showToast(`전층 불출 내역(${unitLabel})이 클립보드에 복사되었습니다.`);
         } catch (err) {
           showToast('복사에 실패했습니다. 인쇄하기를 이용해 주세요.');
         }
@@ -840,6 +910,19 @@
           const stepBtn = e.target.closest('.step-tab');
           if (stepBtn) {
             goToStep(Number(stepBtn.getAttribute('data-step')));
+            return;
+          }
+
+          const unitBtn = e.target.closest('.summary-unit-btn');
+          if (unitBtn) {
+            const selectedUnit = unitBtn.getAttribute('data-summary-unit');
+            if (selectedUnit && selectedUnit !== state.summaryUnit) {
+              state.summaryUnit = selectedUnit;
+              renderStep3();
+              showToast(selectedUnit === 'pack'
+                ? '요약표가 단 단위(1단=10장, Q·H는 장)로 전환되었습니다.'
+                : '요약표가 장 단위로 전환되었습니다.');
+            }
             return;
           }
 
@@ -934,6 +1017,48 @@
         document.getElementById('btn-back-to-2').addEventListener('click', () => goToStep(2));
         document.getElementById('btn-copy-summary').addEventListener('click', copyDistributionSummary);
         document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+        // Enter / 다음(Next) 키 입력 시 다음 입력창으로 자동 포커스 이동
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.keyCode === 13) {
+            const target = e.target;
+            if (target && target.matches('input[type="number"]')) {
+              e.preventDefault();
+              const container = target.closest('#panel-target-config') || document.getElementById(`section-step-${state.currentStep}`);
+              if (!container) return;
+
+              const visibleInputs = Array.from(container.querySelectorAll('input[type="number"]'))
+                .filter(el => el.offsetParent !== null && !el.disabled);
+              const currentIndex = visibleInputs.indexOf(target);
+
+              if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
+                const nextInput = visibleInputs[currentIndex + 1];
+                nextInput.focus();
+                nextInput.select();
+                nextInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              } else {
+                target.blur();
+                showToast('해당 단계의 마지막 항목 입력이 완료되었습니다.');
+              }
+            }
+          }
+        });
+      }
+
+      // 각 섹션의 마지막 입력창에 enterkeyhint="done" 설정
+      function updateEnterKeyHints() {
+        const containers = [
+          document.getElementById('panel-target-config'),
+          document.getElementById('section-step-1'),
+          document.getElementById('section-step-2')
+        ];
+        containers.forEach(container => {
+          if (!container) return;
+          const inputs = Array.from(container.querySelectorAll('input[type="number"]'));
+          inputs.forEach((el, idx) => {
+            el.setAttribute('enterkeyhint', idx === inputs.length - 1 ? 'done' : 'next');
+          });
+        });
       }
 
       // 초기화 및 초기 화면 렌더링
