@@ -279,7 +279,7 @@
         </div>
 
         <div id="summary-pack-note" class="hidden px-5 py-2 bg-amber-50/80 border-b border-amber-100 text-[11px] text-amber-800">
-          ※ <b>단 단위 모드:</b> <b>시트·배스타월 10장</b>, <b>커버 5장</b>, <b>페이스타월·발매트 20장</b>, <b>베개커버·핸드타월 50장</b> = 1단 기준 소수점 버림(<code>Math.floor</code>)으로 환산되며, <span class="font-bold text-amber-900 underline">Q·H 시트 및 커버는 항상 '장' 단위</span>로 표기됩니다.
+          ※ <b>단 단위 모드:</b> <b>시트·배스타월 10장</b>, <b>커버 5장</b>, <b>페이스타월·발매트 20장</b>, <b>베개커버·핸드타월 50장</b> = 1단 기준 <b>[단 수]단 + [잔여]ea</b> 형식으로 표기되며, <span class="font-bold text-amber-900 underline">Q·H 시트 및 커버는 항상 '장' 단위</span>로 표기됩니다.
         </div>
 
         <div class="overflow-x-auto">
@@ -667,11 +667,16 @@
         return item.packSize || 10;
       }
 
-      // 요약표 수량 포맷 헬퍼 ('piece': 모두 장, 'pack': 품목별 1단 기준 환산 / Q·H는 항상 장)
+      // 요약표 수량 포맷 헬퍼 ('piece': 모두 장, 'pack': 1단 이상일 때만 [단 수]단 (+ [잔여]ea), 0단일 때는 [장 수]장 표기 / Q·H는 항상 장)
       function formatSummaryValue(pieces, item) {
         if (state.summaryUnit === 'pack' && !item.isQH) {
           const packSize = getPackSize(item);
-          return `${Math.floor(pieces / packSize)}단`;
+          const packs = Math.floor(pieces / packSize);
+          const remainder = pieces % packSize;
+          if (packs === 0) {
+            return `${pieces}장`;
+          }
+          return remainder > 0 ? `${packs}단 + ${remainder}ea` : `${packs}단`;
         }
         return `${pieces}장`;
       }
@@ -770,7 +775,7 @@
             </td>
             <td colspan="${FLOOR_CONFIG.length + 1}" class="p-2 text-left text-[11px] font-normal text-slate-500">
               ${isPackMode
-                ? '시트·배스 10장 / 커버 5장 / 페이스·발매트 20장 / 베개·핸드 50장 = 1단 (소수점 버림) · Q·H는 낱개 장수 표기'
+                ? '시트·배스 10장 / 커버 5장 / 페이스·발매트 20장 / 베개·핸드 50장 = 1단 (잔여 시 + ea 표기) · Q·H는 낱개 장수 표기'
                 : '전 품목 낱개 장수 기준 · 7F~10F 핸드타월 제외(-)'}
             </td>
           </tr>
