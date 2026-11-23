@@ -329,7 +329,7 @@
             공유하기
           </button>
           <a id="btn-download-summary-img" download="LinenFlow_불출요약표.png"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer">
+            class="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer">
             이미지 저장 (PNG)
           </a>
         </div>
@@ -1233,6 +1233,9 @@
         if (downloadBtn) {
           downloadBtn.href = dataUrl;
           downloadBtn.download = `LinenFlow_불출요약표_${dateStr.replace(/\./g, '')}.png`;
+          const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+          downloadBtn.classList.toggle('hidden', isMobileDevice);
+          downloadBtn.classList.toggle('inline-flex', !isMobileDevice);
         }
         if (unitLabelEl) {
           unitLabelEl.textContent = isPack ? '단 단위 (Q·H 장 고정)' : '장 단위';
