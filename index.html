@@ -265,21 +265,27 @@
             <span class="hidden sm:inline text-xs text-slate-400">· 가로 스크롤 가능</span>
           </div>
 
-          <!-- 장 / 단 단위 전환 토글 버튼 -->
-          <div class="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 no-print" role="group" aria-label="요약표 단위 전환">
-            <button type="button" id="btn-unit-piece" data-unit="piece"
-              class="summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition">
-              장 단위
+          <!-- 장 / 단 단위 전환 토글 버튼 & 이미지로 보기 버튼 -->
+          <div class="flex flex-wrap items-center gap-2 no-print">
+            <button type="button" id="btn-export-summary-img"
+              class="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition flex items-center space-x-1.5">
+              <span>🖼️ 이미지로 보기</span>
             </button>
-            <button type="button" id="btn-unit-pack" data-unit="pack"
-              class="summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">
-              단 단위
-            </button>
+            <div class="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200" role="group" aria-label="요약표 단위 전환">
+              <button type="button" id="btn-unit-piece" data-unit="piece"
+                class="summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition">
+                장 단위
+              </button>
+              <button type="button" id="btn-unit-pack" data-unit="pack"
+                class="summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">
+                단 단위
+              </button>
+            </div>
           </div>
         </div>
 
-        <div id="summary-pack-note" class="hidden px-5 py-2 bg-amber-50/80 border-b border-amber-100 text-[11px] text-amber-800">
-          ※ <b>단 단위 모드:</b> <b>시트·배스타월 10장</b>, <b>커버 5장</b>, <b>페이스타월·발매트 20장</b>, <b>베개커버·핸드타월 50장</b> = 1단 기준 <b>[단 수]단 + [잔여]ea</b> 형식으로 표기되며, <span class="font-bold text-amber-900 underline">Q·H 시트 및 커버는 항상 '장' 단위</span>로 표기됩니다.
+        <div id="summary-pack-note" class="hidden px-5 py-2 bg-blue-50/70 border-b border-blue-100 text-[11px] text-blue-900">
+          💡 <b>단 환산 기준:</b> 시트·배스타월 <b>10장=1단</b>, 커버 <b>5장=1단</b>, 페이스타월·발매트 <b>20장=1단</b>, 베개커버·핸드타월 <b>50장=1단</b> (1단 미만은 장 수만 표기 · <span class="font-bold text-amber-800">Q·H 시트 및 커버는 항상 '장' 단위</span> 고정)
         </div>
 
         <div class="overflow-x-auto">
@@ -298,6 +304,38 @@
     </section>
 
   </main>
+
+  <!-- 요약표 이미지 미리보기 모달 (모바일 및 데스크톱 최적화) -->
+  <div id="summary-image-modal" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 no-print">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-4 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="font-bold text-sm sm:text-base text-slate-900">불출 요약표 이미지 미리보기</h3>
+          <p class="text-[11px] text-slate-500">모바일에서는 이미지를 길게 눌러 앨범에 바로 저장할 수 있습니다.</p>
+        </div>
+        <button type="button" id="btn-close-img-modal" class="p-2 text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl transition">
+          ✕ 닫기
+        </button>
+      </div>
+
+      <div class="p-3 sm:p-5 overflow-auto bg-slate-100 flex-grow flex items-center justify-center">
+        <img id="summary-generated-img" alt="전층 품목별 불출 요약표 이미지" class="max-w-full h-auto rounded-xl shadow-md border border-slate-300 bg-white">
+      </div>
+
+      <div class="px-4 py-3 border-t border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
+        <span class="text-[11px] text-slate-500">현재 선택된 단위(<b id="modal-unit-label">장 단위</b>) 기준으로 생성됨</span>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-share-summary-img" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+            공유하기
+          </button>
+          <a id="btn-download-summary-img" download="LinenFlow_불출요약표.png"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer">
+            이미지 저장 (PNG)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 space-y-1 no-print">
     <p>LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기</p>
@@ -743,7 +781,7 @@
         }
       }
 
-      // STEP 3 렌더링: 스마트 배분 리포트
+      // STEP 3 렌더링: 스마트 배분 리포트 (행: 린넨 품목 S->Q->K->H 순, 열: 층별 7F~13F)
       function renderStep3() {
         let totalCleaningRooms = 0;
         let doneCount = 0;
@@ -783,8 +821,10 @@
           unallocBanner.classList.add('hidden');
         }
 
-        // 전층 요약 테이블 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 7F~13F + 합계)
+        // 단위 토글 버튼 UI 업데이트
         updateSummaryUnitToggleUI();
+
+        // 전층 요약 테이블 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 7F ~ 13F + 합계)
         const tHead = document.getElementById('summary-table-head');
         const tBody = document.getElementById('summary-table-body');
         const tFoot = document.getElementById('summary-table-foot');
@@ -793,71 +833,68 @@
           tHead.innerHTML = `
             <th class="p-2.5 text-left sticky left-0 bg-slate-50 z-10 border-r border-slate-200 whitespace-nowrap">린넨 품목</th>
             ${FLOOR_CONFIG.map(cfg => {
-              const f = cfg.floor;
-              const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
+              const cleanRooms = Number(state.floors[cfg.floor].cleaningRooms) || 0;
               return `
                 <th class="p-2.5 whitespace-nowrap">
-                  <div class="font-extrabold text-slate-900">${f}F</div>
+                  <div class="font-extrabold text-slate-900">${cfg.floor}F</div>
                   <div class="text-[10px] font-normal text-slate-400">(${cleanRooms}/${cfg.rooms})</div>
                 </th>
               `;
             }).join('')}
-            <th class="p-2.5 bg-slate-100 text-slate-900 border-l border-slate-200 whitespace-nowrap">
-              합계 (${state.summaryUnit === 'pack' ? '단' : '장'})
+            <th class="p-2.5 whitespace-nowrap bg-slate-100 border-l border-slate-200">
+              합계 (${state.summaryUnit === 'pack' ? '단/장' : '장'})
             </th>
           `;
 
           tBody.innerHTML = LINEN_ITEMS.map(item => {
-            const totPieces = itemTotals[item.key]?.totalAllocated ?? 0;
-            const packSize = getPackSize(item);
-            const unitHint = item.isQH ? '장 고정' : `${packSize}장=1단`;
+            const totalPieces = itemTotals[item.key]?.totalAllocated ?? 0;
+            const totalFormatted = formatSummaryValue(totalPieces, item);
+
             return `
               <tr class="hover:bg-slate-50 ${item.isQH ? 'bg-amber-50/30' : ''}">
                 <td class="p-2.5 text-left font-bold sticky left-0 z-10 border-r border-slate-200 whitespace-nowrap ${
-                  item.isQH ? 'bg-amber-50 text-amber-900' : 'bg-white text-slate-800'
+                  item.isQH ? 'bg-amber-100 text-amber-900' : 'bg-white text-slate-900'
                 }">
-                  <div class="flex items-center justify-between gap-1.5">
-                    <span>${item.name}${item.isQH ? '★' : ''}</span>
-                    ${state.summaryUnit === 'pack' ? `<span class="text-[10px] font-normal ${item.isQH ? 'text-amber-700' : 'text-slate-400'}">(${unitHint})</span>` : ''}
-                  </div>
+                  ${item.name}${item.isQH ? ' ★' : ''}
                 </td>
                 ${FLOOR_CONFIG.map(cfg => {
-                  const f = cfg.floor;
                   if (item.needHandTowel && !cfg.hasHandTowel) {
-                    return `<td class="p-2.5 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
+                    return `<td class="p-2 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
                   }
-                  const val = floorAllocations[f][item.key]?.pieces ?? 0;
+                  const valPieces = floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
+                  const formatted = formatSummaryValue(valPieces, item);
                   return `
-                    <td class="p-2.5 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
-                      ${formatSummaryValue(val, item)}
+                    <td class="p-2 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
+                      ${formatted}
                     </td>
                   `;
                 }).join('')}
-                <td class="p-2.5 font-extrabold border-l border-slate-200 whitespace-nowrap ${
+                <td class="p-2 font-extrabold whitespace-nowrap border-l border-slate-200 ${
                   item.isQH ? 'bg-amber-100/80 text-amber-900' : 'bg-slate-50 text-blue-700'
                 }">
-                  ${formatSummaryValue(totPieces, item)}
+                  ${totalFormatted}
                 </td>
               </tr>
             `;
           }).join('');
 
-          // 하단 층별 총 불출 수량 합계 행
+          // 하단 층별 총 불출 장수 합계 행
           let grandTotalPieces = 0;
+          const floorSumCells = FLOOR_CONFIG.map(cfg => {
+            let floorSum = 0;
+            LINEN_ITEMS.forEach(item => {
+              if (item.needHandTowel && !cfg.hasHandTowel) return;
+              floorSum += floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
+            });
+            grandTotalPieces += floorSum;
+            return `<td class="p-2 whitespace-nowrap text-slate-800">${floorSum}장</td>`;
+          }).join('');
+
           tFoot.innerHTML = `
             <tr>
-              <td class="p-2.5 text-left sticky left-0 z-10 bg-slate-100 border-r border-slate-200 whitespace-nowrap">층별 총계 (장)</td>
-              ${FLOOR_CONFIG.map(cfg => {
-                const f = cfg.floor;
-                let floorSum = 0;
-                LINEN_ITEMS.forEach(item => {
-                  if (item.needHandTowel && !cfg.hasHandTowel) return;
-                  floorSum += floorAllocations[f][item.key]?.pieces ?? 0;
-                });
-                grandTotalPieces += floorSum;
-                return `<td class="p-2.5 text-slate-800 whitespace-nowrap">${floorSum}장</td>`;
-              }).join('')}
-              <td class="p-2.5 bg-slate-200/70 text-blue-800 border-l border-slate-200 whitespace-nowrap">${grandTotalPieces}장</td>
+              <td class="p-2.5 text-left sticky left-0 bg-slate-100 z-10 border-r border-slate-200 whitespace-nowrap">층별 총계 (장)</td>
+              ${floorSumCells}
+              <td class="p-2 whitespace-nowrap bg-blue-50 text-blue-800 border-l border-slate-200">${grandTotalPieces}장</td>
             </tr>
           `;
         }
@@ -940,10 +977,10 @@
         }).join('');
       }
 
-      // 클립보드 복사 (현재 선택된 요약표 단위 반영)
+      // 클립보드 복사 (현재 선택된 단위 기준으로 불출 요약 복사)
       function copyDistributionSummary() {
         const { floorAllocations } = calculateDistribution();
-        const unitLabel = state.summaryUnit === 'pack' ? '단/Q·H 장 단위' : '장 단위';
+        const unitLabel = state.summaryUnit === 'pack' ? '단위: 단 / Q·H는 장' : '단위: 장';
         const lines = [`[LinenFlow 7F~13F 린넨 불출 지시서 (${unitLabel})]`];
 
         FLOOR_CONFIG.forEach(cfg => {
@@ -951,7 +988,10 @@
           const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
           const activeItems = LINEN_ITEMS.filter(item => !(item.needHandTowel && !cfg.hasHandTowel));
           const itemStr = activeItems
-            .map(item => `${item.name} ${formatSummaryValue(floorAllocations[f][item.key]?.pieces ?? 0, item)}`)
+            .map(item => {
+              const pcs = floorAllocations[f][item.key]?.pieces ?? 0;
+              return `${item.name} ${formatSummaryValue(pcs, item)}`;
+            })
             .join(', ');
           lines.push(`• ${f}층 (정비 ${cleanRooms}실): ${itemStr}`);
         });
@@ -965,11 +1005,252 @@
         textarea.select();
         try {
           document.execCommand('copy');
-          showToast(`전층 불출 내역(${unitLabel})이 클립보드에 복사되었습니다.`);
+          showToast('전층 불출 내역이 클립보드에 복사되었습니다.');
         } catch (err) {
           showToast('복사에 실패했습니다. 인쇄하기를 이용해 주세요.');
         }
         document.body.removeChild(textarea);
+      }
+
+      // 요약표 전체를 고해상도 PNG 이미지(Canvas)로 생성 및 모달 표시
+      let lastGeneratedBlob = null;
+
+      function openSummaryImageModal() {
+        const { floorAllocations, itemTotals } = calculateDistribution();
+        const isPack = state.summaryUnit === 'pack';
+        const dpr = Math.max(window.devicePixelRatio || 2, 2); // 모바일 레티나 디스플레이 고선명 출력
+
+        // 모바일 세로 화면에서도 한눈에 잘 보이도록 컴팩트하고 또렷한 비율 설계
+        const colWidths = [132, 86, 86, 86, 86, 86, 86, 86, 102]; // 품목 + 7F~13F + 합계 = 836px
+        const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+        const padX = 24;
+        const headerAreaHeight = 76;
+        const theadHeight = 46;
+        const rowHeight = 38;
+        const tfootHeight = 42;
+        const footerNoteHeight = 36;
+
+        const canvasWidth = tableWidth + padX * 2;
+        const canvasHeight = headerAreaHeight + theadHeight + (LINEN_ITEMS.length * rowHeight) + tfootHeight + footerNoteHeight + 16;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth * dpr;
+        canvas.height = canvasHeight * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // 전체 배경
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // 상단 헤더 바
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvasWidth, 58);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 19px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('LinenFlow 전층 품목별 불출 요약표', padX, 29);
+
+        // 우측 단위 배지 및 날짜
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+        const unitText = isPack ? '단 단위 (Q·H 장 고정)' : '장 단위';
+        ctx.fillStyle = '#93c5fd';
+        ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${dateStr}  |  ${unitText}`, canvasWidth - padX, 29);
+
+        const startY = headerAreaHeight;
+
+        // 테이블 헤더 그리기
+        let curX = padX;
+        const headers = [
+          { title: '린넨 품목', sub: '' },
+          ...FLOOR_CONFIG.map(cfg => ({
+            title: `${cfg.floor}F`,
+            sub: `(${Number(state.floors[cfg.floor].cleaningRooms) || 0}/${cfg.rooms})`
+          })),
+          { title: '합계', sub: isPack ? '(단/장)' : '(장)' }
+        ];
+
+        headers.forEach((h, idx) => {
+          const w = colWidths[idx];
+          ctx.fillStyle = idx === headers.length - 1 ? '#e2e8f0' : '#f8fafc';
+          ctx.fillRect(curX, startY, w, theadHeight);
+
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(curX, startY, w, theadHeight);
+
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = idx === 0 ? 'left' : 'center';
+          if (h.sub) {
+            ctx.fillText(h.title, idx === 0 ? curX + 12 : curX + w / 2, startY + 16);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '500 10px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillText(h.sub, curX + w / 2, startY + 33);
+          } else {
+            ctx.fillText(h.title, curX + 12, startY + theadHeight / 2);
+          }
+          curX += w;
+        });
+
+        // 데이터 행 그리기
+        LINEN_ITEMS.forEach((item, rIdx) => {
+          const y = startY + theadHeight + rIdx * rowHeight;
+          curX = padX;
+
+          // 첫 열: 품목명
+          const w0 = colWidths[0];
+          ctx.fillStyle = item.isQH ? '#fffbeb' : (rIdx % 2 === 1 ? '#f8fafc' : '#ffffff');
+          ctx.fillRect(curX, y, w0, rowHeight);
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.strokeRect(curX, y, w0, rowHeight);
+
+          ctx.fillStyle = item.isQH ? '#92400e' : '#1e293b';
+          ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${item.name}${item.isQH ? ' ★' : ''}`, curX + 12, y + rowHeight / 2);
+          curX += w0;
+
+          // 층별 열 (7F ~ 13F)
+          FLOOR_CONFIG.forEach((cfg, fIdx) => {
+            const w = colWidths[fIdx + 1];
+            const isExcluded = item.needHandTowel && !cfg.hasHandTowel;
+
+            if (isExcluded) {
+              ctx.fillStyle = '#f1f5f9';
+            } else if (item.isQH) {
+              ctx.fillStyle = '#fef3c7';
+            } else {
+              ctx.fillStyle = rIdx % 2 === 1 ? '#f8fafc' : '#ffffff';
+            }
+            ctx.fillRect(curX, y, w, rowHeight);
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.strokeRect(curX, y, w, rowHeight);
+
+            ctx.textAlign = 'center';
+            if (isExcluded) {
+              ctx.fillStyle = '#94a3b8';
+              ctx.font = '500 12px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+              ctx.fillText('-', curX + w / 2, y + rowHeight / 2);
+            } else {
+              const val = floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
+              const label = formatSummaryValue(val, item);
+              ctx.fillStyle = item.isQH ? '#92400e' : '#0f172a';
+              ctx.font = label.length > 7
+                ? 'bold 11px Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+                : 'bold 12.5px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+              ctx.fillText(label, curX + w / 2, y + rowHeight / 2);
+            }
+            curX += w;
+          });
+
+          // 마지막 열: 품목 합계
+          const wLast = colWidths[colWidths.length - 1];
+          const totPieces = itemTotals[item.key]?.totalAllocated ?? 0;
+          const totLabel = formatSummaryValue(totPieces, item);
+          ctx.fillStyle = item.isQH ? '#fde68a' : '#eff6ff';
+          ctx.fillRect(curX, y, wLast, rowHeight);
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.strokeRect(curX, y, wLast, rowHeight);
+
+          ctx.fillStyle = item.isQH ? '#78350f' : '#1d4ed8';
+          ctx.font = totLabel.length > 7
+            ? 'bold 11.5px Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+            : 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(totLabel, curX + wLast / 2, y + rowHeight / 2);
+        });
+
+        // 하단 층별 총계 행 그리기
+        const footY = startY + theadHeight + LINEN_ITEMS.length * rowHeight;
+        curX = padX;
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(curX, footY, colWidths[0], tfootHeight);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeRect(curX, footY, colWidths[0], tfootHeight);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('층별 총계 (장)', curX + 12, footY + tfootHeight / 2);
+        curX += colWidths[0];
+
+        let grandTotal = 0;
+        FLOOR_CONFIG.forEach((cfg, fIdx) => {
+          const w = colWidths[fIdx + 1];
+          let floorSum = 0;
+          LINEN_ITEMS.forEach(item => {
+            if (item.needHandTowel && !cfg.hasHandTowel) return;
+            floorSum += floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
+          });
+          grandTotal += floorSum;
+
+          ctx.fillStyle = '#f1f5f9';
+          ctx.fillRect(curX, footY, w, tfootHeight);
+          ctx.strokeStyle = '#94a3b8';
+          ctx.strokeRect(curX, footY, w, tfootHeight);
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${floorSum}장`, curX + w / 2, footY + tfootHeight / 2);
+          curX += w;
+        });
+
+        const wLast = colWidths[colWidths.length - 1];
+        ctx.fillStyle = '#dbeafe';
+        ctx.fillRect(curX, footY, wLast, tfootHeight);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeRect(curX, footY, wLast, tfootHeight);
+        ctx.fillStyle = '#1e40af';
+        ctx.font = 'bold 13.5px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${grandTotal}장`, curX + wLast / 2, footY + tfootHeight / 2);
+
+        // 하단 안내 문구
+        ctx.fillStyle = '#64748b';
+        ctx.font = '500 11px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(
+          isPack
+            ? '※ 단 기준: 시트·배스타월 10장 / 커버 5장 / 페이스타월·발매트 20장 / 베개커버·핸드타월 50장 (★ Q·H는 장 고정)'
+            : '※ ★ 표기 품목(Q·H 시트 및 커버)은 집중 관리 품목입니다.',
+          padX,
+          footY + tfootHeight + 22
+        );
+
+        // 이미지 데이터 바인딩 및 모달 표시
+        const dataUrl = canvas.toDataURL('image/png');
+        const imgEl = document.getElementById('summary-generated-img');
+        const downloadBtn = document.getElementById('btn-download-summary-img');
+        const unitLabelEl = document.getElementById('modal-unit-label');
+
+        if (imgEl) imgEl.src = dataUrl;
+        if (downloadBtn) {
+          downloadBtn.href = dataUrl;
+          downloadBtn.download = `LinenFlow_불출요약표_${dateStr.replace(/\./g, '')}.png`;
+        }
+        if (unitLabelEl) {
+          unitLabelEl.textContent = isPack ? '단 단위 (Q·H 장 고정)' : '장 단위';
+        }
+
+        // 모바일 네이티브 공유(Web Share API) 지원 여부 확인
+        canvas.toBlob((blob) => {
+          lastGeneratedBlob = blob;
+          const shareBtn = document.getElementById('btn-share-summary-img');
+          if (shareBtn && navigator.canShare && blob) {
+            const testFile = new File([blob], 'summary.png', { type: 'image/png' });
+            if (navigator.canShare({ files: [testFile] })) {
+              shareBtn.classList.remove('hidden');
+            }
+          }
+        }, 'image/png');
+
+        document.getElementById('summary-image-modal').classList.remove('hidden');
       }
 
       // 이벤트 리스너 등록
@@ -1096,6 +1377,31 @@
         document.getElementById('btn-back-to-2').addEventListener('click', () => goToStep(2));
         document.getElementById('btn-copy-summary').addEventListener('click', copyDistributionSummary);
         document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+        // 요약표 이미지 보기 / 닫기 / 모바일 공유 이벤트
+        document.getElementById('btn-export-summary-img').addEventListener('click', openSummaryImageModal);
+        document.getElementById('btn-close-img-modal').addEventListener('click', () => {
+          document.getElementById('summary-image-modal').classList.add('hidden');
+        });
+        document.getElementById('summary-image-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'summary-image-modal') {
+            document.getElementById('summary-image-modal').classList.add('hidden');
+          }
+        });
+        document.getElementById('btn-share-summary-img').addEventListener('click', async () => {
+          if (!lastGeneratedBlob) return;
+          try {
+            const file = new File([lastGeneratedBlob], 'LinenFlow_불출요약표.png', { type: 'image/png' });
+            await navigator.share({
+              files: [file],
+              title: 'LinenFlow 전층 품목별 불출 요약표'
+            });
+          } catch (err) {
+            if (err && err.name !== 'AbortError') {
+              showToast('공유 창을 열 수 없습니다. 이미지 저장 버튼을 이용해 주세요.');
+            }
+          }
+        });
       }
 
       // 초기화 및 초기 화면 렌더링
