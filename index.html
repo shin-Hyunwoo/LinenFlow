@@ -301,7 +301,7 @@
 
   <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 space-y-1 no-print">
     <p>LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기</p>
-    <p class="text-slate-500 font-medium">수정일 : 2026.11.17</p>
+    <p class="text-slate-500 font-medium">수정일 : 2026.11.23</p>
   </footer>
 
   <script>
@@ -330,14 +330,29 @@
         { key: 'pillowSlip', name: '베개커버',   shortName: '베개',    category: 'other', defaultTarget: 240, packSize: 50, isQH: false, needHandTowel: false },
         { key: 'bathTowel',  name: '배스타월',   shortName: '배스',    category: 'other', defaultTarget: 60,  packSize: 10, isQH: false, needHandTowel: false },
         { key: 'faceTowel',  name: '페이스타월', shortName: '페이스',  category: 'other', defaultTarget: 120, packSize: 20, isQH: false, needHandTowel: false },
-        { key: 'handTowel',  name: '핸드타월',   shortName: '핸드',    category: 'other', defaultTarget: 50,  packSize: 50, isQH: false, needHandTowel: true  },
+        { key: 'handTowel',  name: '핸드타월',   shortName: '핸드',    category: 'other', defaultTarget: 100, packSize: 50, isQH: false, needHandTowel: true  },
         { key: 'bathMat',    name: '발매트',     shortName: '발매트',  category: 'other', defaultTarget: 60,  packSize: 20, isQH: false, needHandTowel: false }
       ];
+
+      // 품목별 1단 기준 수량 반환 (시트·배스 10장, 커버 5장, 페이스·발매트 20장, 베개·핸드 50장)
+      function getPackSize(item) {
+        return item.packSize || 10;
+      }
+
+      // 단 단위 표기 포맷터 (0단이면 장 수만 표기, 1단 이상이면 [단 수]단 + [잔여]ea 또는 [단 수]단)
+      function formatPackDisplay(pieces, packSize) {
+        const packs = Math.floor(pieces / packSize);
+        const rem = pieces % packSize;
+        if (packs === 0) {
+          return `${rem}장`;
+        }
+        return rem > 0 ? `${packs}단 + ${rem}ea` : `${packs}단`;
+      }
 
       // 애플리케이션 상태 (모든 사용자 입력은 빈칸 null로 초기화)
       const state = {
         currentStep: 1,
-        summaryUnit: 'piece', // 'piece' (장) | 'pack' (단)
+        summaryUnit: 'piece', // 'piece' (장 단위) | 'pack' (단 단위)
         targetStock: {},      // 층별 적정 재고 기준 (장)
         floors: {},           // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
         incomingPieces: {}    // 당일 중앙 세탁 입고량 (장)
@@ -346,20 +361,20 @@
       function initializeBlankState() {
         LINEN_ITEMS.forEach(item => {
           state.targetStock[item.key] = item.defaultTarget;
-          state.incomingPieces[item.key] = null;
+          state.incomingPieces[item.key] = null; // 빈칸 초기화
         });
 
         FLOOR_CONFIG.forEach(cfg => {
           const prevStock = {};
           LINEN_ITEMS.forEach(item => {
-            if (item.needHandTowel && !cfg.hasHandTowel) return;
-            prevStock[item.key] = null;
+            if (item.needHandTowel && !cfg.hasHandTowel) return; // 7~10층 핸드타월 제외
+            prevStock[item.key] = null; // 빈칸 초기화
           });
 
           state.floors[cfg.floor] = {
             rooms: cfg.rooms,
             hasHandTowel: cfg.hasHandTowel,
-            cleaningRooms: null,
+            cleaningRooms: null, // 빈칸 초기화
             completed: false,
             prevStock: prevStock
           };
@@ -377,6 +392,41 @@
         toastTimer = setTimeout(() => {
           el.classList.add('opacity-0', 'translate-y-6');
         }, 2400);
+      }
+
+      // 현재 화면에 보이는 입력창(input[type="number"]) 목록 반환
+      function getVisibleStepInputs() {
+        const activeSection = document.getElementById(`section-step-${state.currentStep}`);
+        if (!activeSection) return [];
+        return Array.from(activeSection.querySelectorAll('input[type="number"]')).filter(
+          el => !el.disabled && el.offsetParent !== null
+        );
+      }
+
+      // 현재 단계의 입력창들에 enterkeyhint 속성 동기화 (마지막 칸은 done, 나머지는 next)
+      function updateEnterKeyHints() {
+        const inputs = getVisibleStepInputs();
+        inputs.forEach((input, idx) => {
+          input.setAttribute('enterkeyhint', idx === inputs.length - 1 ? 'done' : 'next');
+        });
+      }
+
+      // 현재 입력창에서 다음 입력창으로 포커스 이동
+      function focusNextInput(currentInput) {
+        const inputs = getVisibleStepInputs();
+        const currentIndex = inputs.indexOf(currentInput);
+        if (currentIndex === -1) return;
+
+        if (currentIndex < inputs.length - 1) {
+          const nextInput = inputs[currentIndex + 1];
+          nextInput.focus();
+          nextInput.select();
+          nextInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          // 마지막 입력칸인 경우 키보드 닫기 및 완료 안내
+          currentInput.blur();
+          showToast(`Step ${state.currentStep}의 마지막 항목 입력이 완료되었습니다.`);
+        }
       }
 
       // 스텝 전환
@@ -402,16 +452,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
-      // 현재 화면에 표시 중인 입력창들의 enterkeyhint('next' / 'done') 동기화
-      function updateEnterKeyHints() {
-        const visibleInputs = Array.from(document.querySelectorAll('input[type="number"]'))
-          .filter(el => el.offsetParent !== null && !el.disabled);
-        visibleInputs.forEach((el, idx) => {
-          el.setAttribute('enterkeyhint', idx === visibleInputs.length - 1 ? 'done' : 'next');
-        });
-      }
-
-      // 층별 적정 기준 설정 패널 렌더링 (S -> Q -> K -> H 순)
+      // 층별 적정 기준 설정 패널 렌더링 (장 단위, S -> Q -> K -> H 순)
       function renderTargetConfig() {
         const grid = document.getElementById('target-inputs-grid');
         if (!grid) return;
@@ -421,13 +462,12 @@
               ${item.name} ${item.isQH ? '★' : ''}
             </label>
             <div class="flex items-center space-x-1">
-              <input type="number" inputmode="numeric" min="0" value="${state.targetStock[item.key]}" data-target-key="${item.key}"
+              <input type="number" inputmode="numeric" enterkeyhint="done" min="0" value="${state.targetStock[item.key]}" data-target-key="${item.key}"
                 class="target-cfg-input w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-base font-bold text-right text-slate-900">
               <span class="text-[11px] text-slate-500 shrink-0">장</span>
             </div>
           </div>
         `).join('');
-        updateEnterKeyHints();
       }
 
       // STEP 1 렌더링: 7F ~ 13F 전일 마감 잔여 재고 (S -> Q -> K -> H 순)
@@ -511,10 +551,11 @@
             </div>
           `;
         }).join('');
+
         updateEnterKeyHints();
       }
 
-      // STEP 2 렌더링: 당일 세탁 입고량(장) & 층별 정비 객실 수 (S -> Q -> K -> H 순)
+      // STEP 2 렌더링: 당일 세탁 입고량(장, S -> Q -> K -> H 순) & 층별 정비 객실 수
       function renderStep2() {
         const deliveryContainer = document.getElementById('step2-delivery-list');
         if (deliveryContainer) {
@@ -579,6 +620,7 @@
             `;
           }).join('');
         }
+
         updateEnterKeyHints();
       }
 
@@ -601,13 +643,14 @@
 
           FLOOR_CONFIG.forEach(cfg => {
             const f = cfg.floor;
-            if (item.needHandTowel && !cfg.hasHandTowel) return;
+            if (item.needHandTowel && !cfg.hasHandTowel) return; // 7~10층 핸드타월 배분 제외
 
             const fl = state.floors[f];
             const prev = Number(fl.prevStock[key]) || 0;
             const cleanRooms = Number(fl.cleaningRooms) || 0;
             const roomRatio = cfg.rooms > 0 ? cleanRooms / cfg.rooms : 0;
 
+            // 정비 객실 비율을 반영한 목표 적정 재고 (장)
             const adjustedTarget = Math.round(baseTarget * (0.85 + roomRatio * 0.35));
             const needPieces = Math.max(0, adjustedTarget - prev);
 
@@ -623,6 +666,7 @@
               floorAllocations[cfg.floor][key] = { pieces: 0, demandPieces: 0 };
             });
           } else if (incomingTotalPieces >= totalDemandPieces) {
+            // 입고량이 충분하면 각 층 필요 장수 전량 배정
             FLOOR_CONFIG.forEach(cfg => {
               if (item.needHandTowel && !cfg.hasHandTowel) return;
               const pcs = demands[cfg.floor];
@@ -630,6 +674,7 @@
               totalAllocated += pcs;
             });
           } else {
+            // 입고량이 부족하면 필요 비율에 따라 Math.floor 기반 장 단위 비례 배분
             hasAnyShortage = true;
             FLOOR_CONFIG.forEach(cfg => {
               if (item.needHandTowel && !cfg.hasHandTowel) return;
@@ -662,124 +707,40 @@
         return { floorAllocations, itemTotals, hasAnyShortage, shortages };
       }
 
-      // 품목별 1단 기준 장수 반환
-      function getPackSize(item) {
-        return item.packSize || 10;
-      }
-
-      // 요약표 수량 포맷 헬퍼 ('piece': 모두 장, 'pack': 1단 이상일 때만 [단 수]단 (+ [잔여]ea), 0단일 때는 [장 수]장 표기 / Q·H는 항상 장)
+      // 요약표 수량 포맷팅 (장 단위 vs 단 단위: 시트/배스 10장, 커버 5장, 페이스/발매트 20장, 베개/핸드 50장, Q/H는 항상 장 단위)
       function formatSummaryValue(pieces, item) {
         if (state.summaryUnit === 'pack' && !item.isQH) {
           const packSize = getPackSize(item);
-          const packs = Math.floor(pieces / packSize);
-          const remainder = pieces % packSize;
-          if (packs === 0) {
-            return `${pieces}장`;
-          }
-          return remainder > 0 ? `${packs}단 + ${remainder}ea` : `${packs}단`;
+          return formatPackDisplay(pieces, packSize);
         }
         return `${pieces}장`;
       }
 
-      // 전층 품목별 불출 요약표 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 층 7F~13F + 합계)
-      function renderSummaryTable(floorAllocations) {
-        const tHead = document.getElementById('summary-table-head');
-        const tBody = document.getElementById('summary-table-body');
-        const tFoot = document.getElementById('summary-table-foot');
+      // 요약표 단위 토글 UI 동기화
+      function updateSummaryUnitToggleUI() {
+        const isPack = state.summaryUnit === 'pack';
         const titleEl = document.getElementById('summary-table-title');
-        const packNoteEl = document.getElementById('summary-pack-note');
-        const btnPiece = document.getElementById('btn-unit-piece');
-        const btnPack = document.getElementById('btn-unit-pack');
-
-        const isPackMode = state.summaryUnit === 'pack';
+        const noteEl = document.getElementById('summary-pack-note');
+        const pieceBtn = document.getElementById('btn-unit-piece');
+        const packBtn = document.getElementById('btn-unit-pack');
 
         if (titleEl) {
-          titleEl.textContent = isPackMode
-            ? '전층 품목별 불출 요약표 (단위: 단 · Q/H는 장)'
+          titleEl.textContent = isPack
+            ? '전층 품목별 불출 요약표 (단위: 단 / Q·H는 장)'
             : '전층 품목별 불출 요약표 (단위: 장)';
         }
-        if (packNoteEl) {
-          packNoteEl.classList.toggle('hidden', !isPackMode);
+        if (noteEl) {
+          noteEl.classList.toggle('hidden', !isPack);
         }
-        if (btnPiece && btnPack) {
-          btnPiece.className = !isPackMode
-            ? 'summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition'
-            : 'summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
-          btnPack.className = isPackMode
-            ? 'summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition'
-            : 'summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+        if (pieceBtn && packBtn) {
+          if (isPack) {
+            pieceBtn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+            packBtn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition';
+          } else {
+            pieceBtn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-xs transition';
+            packBtn.className = 'summary-unit-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+          }
         }
-
-        if (!tHead || !tBody || !tFoot) return;
-
-        // 열 헤더: 품목 구분(좌측 고정) + 7F ~ 13F + 합계
-        tHead.innerHTML = `
-          <th class="p-2.5 text-left sticky left-0 bg-slate-50 z-10 border-r border-slate-200 whitespace-nowrap">린넨 품목</th>
-          ${FLOOR_CONFIG.map(cfg => {
-            const cleanRooms = Number(state.floors[cfg.floor].cleaningRooms) || 0;
-            return `
-              <th class="p-2.5 whitespace-nowrap">
-                <div class="font-extrabold text-slate-900">${cfg.floor}F</div>
-                <div class="text-[10px] font-normal text-slate-400">(${cleanRooms}/${cfg.rooms})</div>
-              </th>
-            `;
-          }).join('')}
-          <th class="p-2.5 whitespace-nowrap bg-slate-100 text-slate-900 border-l border-slate-200">전층 합계</th>
-        `;
-
-        // 행 바디: LINEN_ITEMS 순서 (S -> Q -> K -> H 순)
-        tBody.innerHTML = LINEN_ITEMS.map(item => {
-          let rowTotalPieces = 0;
-          const packSize = getPackSize(item);
-          const unitHint = isPackMode && !item.isQH ? ` <span class="text-[10px] font-normal text-slate-400">(${packSize}장/단)</span>` : '';
-
-          const floorCells = FLOOR_CONFIG.map(cfg => {
-            const f = cfg.floor;
-            if (item.needHandTowel && !cfg.hasHandTowel) {
-              return `<td class="p-2.5 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
-            }
-            const pcs = floorAllocations[f][item.key]?.pieces ?? 0;
-            rowTotalPieces += pcs;
-            const formatted = formatSummaryValue(pcs, item);
-            return `
-              <td class="p-2.5 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
-                ${formatted}
-              </td>
-            `;
-          }).join('');
-
-          const totalFormatted = formatSummaryValue(rowTotalPieces, item);
-
-          return `
-            <tr class="hover:bg-slate-50">
-              <td class="p-2.5 text-left font-bold sticky left-0 z-10 border-r border-slate-200 whitespace-nowrap ${
-                item.isQH ? 'bg-amber-50 text-amber-900' : 'bg-white text-slate-900'
-              }">
-                ${item.name}${item.isQH ? '★' : ''}${unitHint}
-              </td>
-              ${floorCells}
-              <td class="p-2.5 font-extrabold whitespace-nowrap border-l border-slate-200 ${
-                item.isQH ? 'bg-amber-100/80 text-amber-900' : 'bg-slate-50/80 text-blue-700'
-              }">
-                ${totalFormatted}
-              </td>
-            </tr>
-          `;
-        }).join('');
-
-        // 하단 안내 푸터 행
-        tFoot.innerHTML = `
-          <tr>
-            <td class="p-2 text-left text-[11px] font-semibold text-slate-500 sticky left-0 bg-slate-50 border-r border-slate-200 whitespace-nowrap">
-              기준 안내
-            </td>
-            <td colspan="${FLOOR_CONFIG.length + 1}" class="p-2 text-left text-[11px] font-normal text-slate-500">
-              ${isPackMode
-                ? '시트·배스 10장 / 커버 5장 / 페이스·발매트 20장 / 베개·핸드 50장 = 1단 (잔여 시 + ea 표기) · Q·H는 낱개 장수 표기'
-                : '전 품목 낱개 장수 기준 · 7F~10F 핸드타월 제외(-)'}
-            </td>
-          </tr>
-        `;
       }
 
       // STEP 3 렌더링: 스마트 배분 리포트
@@ -793,7 +754,7 @@
           if (fl.completed) doneCount++;
         });
 
-        const { floorAllocations, hasAnyShortage, shortages } = calculateDistribution();
+        const { floorAllocations, itemTotals, hasAnyShortage, shortages } = calculateDistribution();
 
         document.getElementById('kpi-total-rooms').textContent = totalCleaningRooms;
         document.getElementById('kpi-done-count').textContent = `${doneCount} / ${FLOOR_CONFIG.length}`;
@@ -822,8 +783,84 @@
           unallocBanner.classList.add('hidden');
         }
 
-        // 전층 품목별 불출 요약표 렌더링
-        renderSummaryTable(floorAllocations);
+        // 전층 요약 테이블 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 7F~13F + 합계)
+        updateSummaryUnitToggleUI();
+        const tHead = document.getElementById('summary-table-head');
+        const tBody = document.getElementById('summary-table-body');
+        const tFoot = document.getElementById('summary-table-foot');
+
+        if (tHead && tBody && tFoot) {
+          tHead.innerHTML = `
+            <th class="p-2.5 text-left sticky left-0 bg-slate-50 z-10 border-r border-slate-200 whitespace-nowrap">린넨 품목</th>
+            ${FLOOR_CONFIG.map(cfg => {
+              const f = cfg.floor;
+              const cleanRooms = Number(state.floors[f].cleaningRooms) || 0;
+              return `
+                <th class="p-2.5 whitespace-nowrap">
+                  <div class="font-extrabold text-slate-900">${f}F</div>
+                  <div class="text-[10px] font-normal text-slate-400">(${cleanRooms}/${cfg.rooms})</div>
+                </th>
+              `;
+            }).join('')}
+            <th class="p-2.5 bg-slate-100 text-slate-900 border-l border-slate-200 whitespace-nowrap">
+              합계 (${state.summaryUnit === 'pack' ? '단' : '장'})
+            </th>
+          `;
+
+          tBody.innerHTML = LINEN_ITEMS.map(item => {
+            const totPieces = itemTotals[item.key]?.totalAllocated ?? 0;
+            const packSize = getPackSize(item);
+            const unitHint = item.isQH ? '장 고정' : `${packSize}장=1단`;
+            return `
+              <tr class="hover:bg-slate-50 ${item.isQH ? 'bg-amber-50/30' : ''}">
+                <td class="p-2.5 text-left font-bold sticky left-0 z-10 border-r border-slate-200 whitespace-nowrap ${
+                  item.isQH ? 'bg-amber-50 text-amber-900' : 'bg-white text-slate-800'
+                }">
+                  <div class="flex items-center justify-between gap-1.5">
+                    <span>${item.name}${item.isQH ? '★' : ''}</span>
+                    ${state.summaryUnit === 'pack' ? `<span class="text-[10px] font-normal ${item.isQH ? 'text-amber-700' : 'text-slate-400'}">(${unitHint})</span>` : ''}
+                  </div>
+                </td>
+                ${FLOOR_CONFIG.map(cfg => {
+                  const f = cfg.floor;
+                  if (item.needHandTowel && !cfg.hasHandTowel) {
+                    return `<td class="p-2.5 text-slate-300 bg-slate-50/60 font-medium">-</td>`;
+                  }
+                  const val = floorAllocations[f][item.key]?.pieces ?? 0;
+                  return `
+                    <td class="p-2.5 font-bold whitespace-nowrap ${item.isQH ? 'bg-amber-50/70 text-amber-800' : 'text-slate-800'}">
+                      ${formatSummaryValue(val, item)}
+                    </td>
+                  `;
+                }).join('')}
+                <td class="p-2.5 font-extrabold border-l border-slate-200 whitespace-nowrap ${
+                  item.isQH ? 'bg-amber-100/80 text-amber-900' : 'bg-slate-50 text-blue-700'
+                }">
+                  ${formatSummaryValue(totPieces, item)}
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          // 하단 층별 총 불출 수량 합계 행
+          let grandTotalPieces = 0;
+          tFoot.innerHTML = `
+            <tr>
+              <td class="p-2.5 text-left sticky left-0 z-10 bg-slate-100 border-r border-slate-200 whitespace-nowrap">층별 총계 (장)</td>
+              ${FLOOR_CONFIG.map(cfg => {
+                const f = cfg.floor;
+                let floorSum = 0;
+                LINEN_ITEMS.forEach(item => {
+                  if (item.needHandTowel && !cfg.hasHandTowel) return;
+                  floorSum += floorAllocations[f][item.key]?.pieces ?? 0;
+                });
+                grandTotalPieces += floorSum;
+                return `<td class="p-2.5 text-slate-800 whitespace-nowrap">${floorSum}장</td>`;
+              }).join('')}
+              <td class="p-2.5 bg-slate-200/70 text-blue-800 border-l border-slate-200 whitespace-nowrap">${grandTotalPieces}장</td>
+            </tr>
+          `;
+        }
 
         // 층별 상세 카드 리스트 렌더링 (S -> Q -> K -> H 순)
         const listEl = document.getElementById('step3-report-list');
@@ -903,14 +940,11 @@
         }).join('');
       }
 
-      // 클립보드 복사 (현재 요약표 단위 모드 반영, S -> Q -> K -> H 순)
+      // 클립보드 복사 (현재 선택된 요약표 단위 반영)
       function copyDistributionSummary() {
         const { floorAllocations } = calculateDistribution();
-        const isPackMode = state.summaryUnit === 'pack';
-        const headerLabel = isPackMode
-          ? '[LinenFlow 7F~13F 린넨 불출 지시서 (시트·배스 10장, 커버 5장, 페이스·발매트 20장, 베개·핸드 50장=1단 / Q·H는 장)]'
-          : '[LinenFlow 7F~13F 린넨 불출 지시서 (단위: 장)]';
-        const lines = [headerLabel];
+        const unitLabel = state.summaryUnit === 'pack' ? '단/Q·H 장 단위' : '장 단위';
+        const lines = [`[LinenFlow 7F~13F 린넨 불출 지시서 (${unitLabel})]`];
 
         FLOOR_CONFIG.forEach(cfg => {
           const f = cfg.floor;
@@ -931,7 +965,7 @@
         textarea.select();
         try {
           document.execCommand('copy');
-          showToast(`전층 불출 내역(${isPackMode ? '단/장 혼합' : '장'} 단위)이 클립보드에 복사되었습니다.`);
+          showToast(`전층 불출 내역(${unitLabel})이 클립보드에 복사되었습니다.`);
         } catch (err) {
           showToast('복사에 실패했습니다. 인쇄하기를 이용해 주세요.');
         }
@@ -947,22 +981,17 @@
             return;
           }
 
-          // 요약표 장 / 단 단위 전환 토글 클릭
           const unitBtn = e.target.closest('.summary-unit-btn');
           if (unitBtn) {
-            const newUnit = unitBtn.getAttribute('data-unit');
-            if (newUnit && newUnit !== state.summaryUnit) {
-              state.summaryUnit = newUnit;
-              const { floorAllocations } = calculateDistribution();
-              renderSummaryTable(floorAllocations);
-              showToast(newUnit === 'pack'
-                ? '요약표가 품목별 단 단위(Q·H는 장)로 전환되었습니다.'
-                : '요약표가 장 단위로 전환되었습니다.');
+            const nextUnit = unitBtn.getAttribute('data-unit');
+            if (nextUnit && state.summaryUnit !== nextUnit) {
+              state.summaryUnit = nextUnit;
+              renderStep3();
+              showToast(`요약표 표기 단위가 '${nextUnit === 'pack' ? '단 (Q·H는 장)' : '장'}' 단위로 변경되었습니다.`);
             }
             return;
           }
 
-          // 층별 불출 완료 체크 토글
           const doneBtn = e.target.closest('[data-toggle-done]');
           if (doneBtn) {
             const f = Number(doneBtn.getAttribute('data-toggle-done'));
@@ -973,25 +1002,16 @@
           }
         });
 
-        // Enter(모바일 다음/완료) 키 입력 시 다음 input으로 자동 포커스 이동
+        // Enter / 모바일 키패드 '다음(Next)' 키 입력 시 다음 input으로 포커스 자동 이동
         document.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
-            e.preventDefault();
-            const visibleInputs = Array.from(document.querySelectorAll('input[type="number"]'))
-              .filter(el => el.offsetParent !== null && !el.disabled);
-            const currentIndex = visibleInputs.indexOf(e.target);
-
-            if (currentIndex > -1 && currentIndex < visibleInputs.length - 1) {
-              const nextInput = visibleInputs[currentIndex + 1];
-              nextInput.focus();
-              if (typeof nextInput.select === 'function') {
-                nextInput.select();
-              }
-              nextInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
+          if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') {
+            if (e.target.classList.contains('target-cfg-input')) {
+              e.preventDefault();
               e.target.blur();
-              showToast('현재 단계의 모든 항목 입력이 완료되었습니다.');
+              return;
             }
+            e.preventDefault();
+            focusNextInput(e.target);
           }
         });
 
@@ -1058,12 +1078,10 @@
           const panel = document.getElementById('panel-target-config');
           panel.classList.toggle('hidden');
           if (!panel.classList.contains('hidden')) renderTargetConfig();
-          updateEnterKeyHints();
         });
 
         document.getElementById('btn-close-target').addEventListener('click', () => {
           document.getElementById('panel-target-config').classList.add('hidden');
-          updateEnterKeyHints();
         });
 
         document.getElementById('btn-reset-all').addEventListener('click', () => {
