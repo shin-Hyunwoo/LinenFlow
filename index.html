@@ -1152,7 +1152,8 @@
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
               await navigator.share({
-                files: [file]
+                files: [file],
+                title: 'LinenFlow 전층 품목별 불출 요약표'
               });
             } catch (err) {
               if (err && err.name !== 'AbortError') {
