@@ -262,11 +262,14 @@
         <div class="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center space-x-2">
             <h2 id="summary-table-title" class="font-bold text-sm sm:text-base text-slate-900">전층 품목별 불출 요약표 (단위: 장)</h2>
-            <span class="hidden sm:inline text-xs text-slate-400">· 가로 스크롤 가능</span>
           </div>
 
-          <!-- 장 / 단 단위 전환 토글 버튼 & 이미지로 보기 버튼 -->
+          <!-- 장 / 단 단위 전환 토글 버튼 & 합계 표시 토글 & 이미지로 보기 버튼 -->
           <div class="flex flex-wrap items-center gap-2 no-print">
+            <button type="button" id="btn-toggle-summary-total"
+              class="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition">
+              합계 표시
+            </button>
             <button type="button" id="btn-export-summary-img"
               class="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition flex items-center space-x-1.5">
               <span>🖼️ 이미지로 보기</span>
@@ -288,14 +291,15 @@
           💡 <b>단 환산 기준:</b> 시트·배스타월 <b>10장=1단</b>, 커버 <b>5장=1단</b>, 페이스타월·발매트 <b>20장=1단</b>, 베개커버·핸드타월 <b>50장=1단</b> (1단 미만은 장 수만 표기 · <span class="font-bold text-amber-800">Q·H 시트 및 커버는 항상 '장' 단위</span> 고정)
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-center border-collapse text-xs">
-            <thead>
-              <tr id="summary-table-head" class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200"></tr>
-            </thead>
-            <tbody id="summary-table-body" class="divide-y divide-slate-100"></tbody>
-            <tfoot id="summary-table-foot" class="bg-slate-50 font-extrabold text-slate-900 border-t-2 border-slate-200"></tfoot>
-          </table>
+        <div class="p-5">
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-center border-collapse text-xs">
+              <thead>
+                <tr id="summary-table-head" class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200"></tr>
+              </thead>
+              <tbody id="summary-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -339,7 +343,7 @@
 
   <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 space-y-1 no-print">
     <p>LinenFlow (린넨플로우) — 호텔 하우스키핑 린넨 스마트 자동 배분 웹 계산기</p>
-    <p class="text-slate-500 font-medium">수정일 : 2026.11.23</p>
+    <p class="text-slate-500 font-medium">수정일 : 2026.11.25</p>
   </footer>
 
   <script>
@@ -390,10 +394,11 @@
       // 애플리케이션 상태 (모든 사용자 입력은 빈칸 null로 초기화)
       const state = {
         currentStep: 1,
-        summaryUnit: 'piece', // 'piece' (장 단위) | 'pack' (단 단위)
-        targetStock: {},      // 층별 적정 재고 기준 (장)
-        floors: {},           // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
-        incomingPieces: {}    // 당일 중앙 세탁 입고량 (장)
+        summaryUnit: 'piece',     // 'piece' (장 단위) | 'pack' (단 단위)
+        showSummaryTotal: false,  // 요약표 우측 '합계' 열 표시 여부 (기본 숨김)
+        targetStock: {},          // 층별 적정 재고 기준 (장)
+        floors: {},               // 층별 전일 재고(장), 당일 정비 객실 수, 완료 상태
+        incomingPieces: {}        // 당일 중앙 세탁 입고량 (장)
       };
 
       function initializeBlankState() {
@@ -748,19 +753,19 @@
       // 요약표 수량 포맷팅 (장 단위 vs 단 단위: 시트/배스 10장, 커버 5장, 페이스/발매트 20장, 베개/핸드 50장, Q/H는 항상 장 단위)
       function formatSummaryValue(pieces, item) {
         if (state.summaryUnit === 'pack' && !item.isQH) {
-          const packSize = getPackSize(item);
-          return formatPackDisplay(pieces, packSize);
+          return formatPackDisplay(pieces, getPackSize(item));
         }
         return `${pieces}장`;
       }
 
-      // 요약표 단위 토글 UI 동기화
+      // 요약표 단위 토글 및 합계 열 토글 UI 동기화
       function updateSummaryUnitToggleUI() {
         const isPack = state.summaryUnit === 'pack';
         const titleEl = document.getElementById('summary-table-title');
         const noteEl = document.getElementById('summary-pack-note');
         const pieceBtn = document.getElementById('btn-unit-piece');
         const packBtn = document.getElementById('btn-unit-pack');
+        const totalToggleBtn = document.getElementById('btn-toggle-summary-total');
 
         if (titleEl) {
           titleEl.textContent = isPack
@@ -769,6 +774,12 @@
         }
         if (noteEl) {
           noteEl.classList.toggle('hidden', !isPack);
+        }
+        if (totalToggleBtn) {
+          totalToggleBtn.textContent = state.showSummaryTotal ? '합계 숨김' : '합계 표시';
+          totalToggleBtn.className = state.showSummaryTotal
+            ? 'px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-50 text-blue-700 border border-blue-300 transition'
+            : 'px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition';
         }
         if (pieceBtn && packBtn) {
           if (isPack) {
@@ -824,12 +835,12 @@
         // 단위 토글 버튼 UI 업데이트
         updateSummaryUnitToggleUI();
 
-        // 전층 요약 테이블 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 7F ~ 13F + 합계)
+        // 전층 요약 테이블 렌더링 (행: 린넨 품목 S->Q->K->H 순, 열: 7F ~ 13F, 선택 시 우측 합계 열 표시)
         const tHead = document.getElementById('summary-table-head');
         const tBody = document.getElementById('summary-table-body');
-        const tFoot = document.getElementById('summary-table-foot');
+        const showTotal = state.showSummaryTotal;
 
-        if (tHead && tBody && tFoot) {
+        if (tHead && tBody) {
           tHead.innerHTML = `
             <th class="p-2.5 text-left sticky left-0 bg-slate-50 z-10 border-r border-slate-200 whitespace-nowrap">린넨 품목</th>
             ${FLOOR_CONFIG.map(cfg => {
@@ -841,9 +852,11 @@
                 </th>
               `;
             }).join('')}
-            <th class="p-2.5 whitespace-nowrap bg-slate-100 border-l border-slate-200">
-              합계 (${state.summaryUnit === 'pack' ? '단/장' : '장'})
-            </th>
+            ${showTotal ? `
+              <th class="p-2.5 whitespace-nowrap bg-slate-100 border-l border-slate-200">
+                합계 (${state.summaryUnit === 'pack' ? '단/장' : '장'})
+              </th>
+            ` : ''}
           `;
 
           tBody.innerHTML = LINEN_ITEMS.map(item => {
@@ -869,34 +882,16 @@
                     </td>
                   `;
                 }).join('')}
-                <td class="p-2 font-extrabold whitespace-nowrap border-l border-slate-200 ${
-                  item.isQH ? 'bg-amber-100/80 text-amber-900' : 'bg-slate-50 text-blue-700'
-                }">
-                  ${totalFormatted}
-                </td>
+                ${showTotal ? `
+                  <td class="p-2 font-extrabold whitespace-nowrap border-l border-slate-200 ${
+                    item.isQH ? 'bg-amber-100/80 text-amber-900' : 'bg-slate-50 text-blue-700'
+                  }">
+                    ${totalFormatted}
+                  </td>
+                ` : ''}
               </tr>
             `;
           }).join('');
-
-          // 하단 층별 총 불출 장수 합계 행
-          let grandTotalPieces = 0;
-          const floorSumCells = FLOOR_CONFIG.map(cfg => {
-            let floorSum = 0;
-            LINEN_ITEMS.forEach(item => {
-              if (item.needHandTowel && !cfg.hasHandTowel) return;
-              floorSum += floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
-            });
-            grandTotalPieces += floorSum;
-            return `<td class="p-2 whitespace-nowrap text-slate-800">${floorSum}장</td>`;
-          }).join('');
-
-          tFoot.innerHTML = `
-            <tr>
-              <td class="p-2.5 text-left sticky left-0 bg-slate-100 z-10 border-r border-slate-200 whitespace-nowrap">층별 총계 (장)</td>
-              ${floorSumCells}
-              <td class="p-2 whitespace-nowrap bg-blue-50 text-blue-800 border-l border-slate-200">${grandTotalPieces}장</td>
-            </tr>
-          `;
         }
 
         // 층별 상세 카드 리스트 렌더링 (S -> Q -> K -> H 순)
@@ -1016,22 +1011,21 @@
       let lastGeneratedBlob = null;
 
       function openSummaryImageModal() {
-        const { floorAllocations, itemTotals } = calculateDistribution();
+        const { floorAllocations } = calculateDistribution();
         const isPack = state.summaryUnit === 'pack';
         const dpr = Math.max(window.devicePixelRatio || 2, 2); // 모바일 레티나 디스플레이 고선명 출력
 
-        // 모바일 세로 화면에서도 한눈에 잘 보이도록 컴팩트하고 또렷한 비율 설계
-        const colWidths = [132, 86, 86, 86, 86, 86, 86, 86, 102]; // 품목 + 7F~13F + 합계 = 836px
+        // 이미지에는 '합계' 열과 '층별 총계' 행을 제외하고 품목 + 7F~13F만 깔끔하게 렌더링
+        const colWidths = [132, 88, 88, 88, 88, 88, 88, 88]; // 품목 + 7F~13F = 748px
         const tableWidth = colWidths.reduce((a, b) => a + b, 0);
         const padX = 24;
         const headerAreaHeight = 76;
         const theadHeight = 46;
         const rowHeight = 38;
-        const tfootHeight = 42;
         const footerNoteHeight = 36;
 
         const canvasWidth = tableWidth + padX * 2;
-        const canvasHeight = headerAreaHeight + theadHeight + (LINEN_ITEMS.length * rowHeight) + tfootHeight + footerNoteHeight + 16;
+        const canvasHeight = headerAreaHeight + theadHeight + (LINEN_ITEMS.length * rowHeight) + footerNoteHeight + 16;
 
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth * dpr;
@@ -1064,20 +1058,19 @@
 
         const startY = headerAreaHeight;
 
-        // 테이블 헤더 그리기
+        // 테이블 헤더 그리기 (합계 열 제외)
         let curX = padX;
         const headers = [
           { title: '린넨 품목', sub: '' },
           ...FLOOR_CONFIG.map(cfg => ({
             title: `${cfg.floor}F`,
             sub: `(${Number(state.floors[cfg.floor].cleaningRooms) || 0}/${cfg.rooms})`
-          })),
-          { title: '합계', sub: isPack ? '(단/장)' : '(장)' }
+          }))
         ];
 
         headers.forEach((h, idx) => {
           const w = colWidths[idx];
-          ctx.fillStyle = idx === headers.length - 1 ? '#e2e8f0' : '#f8fafc';
+          ctx.fillStyle = '#f8fafc';
           ctx.fillRect(curX, startY, w, theadHeight);
 
           ctx.strokeStyle = '#cbd5e1';
@@ -1098,7 +1091,7 @@
           curX += w;
         });
 
-        // 데이터 행 그리기
+        // 데이터 행 그리기 (합계 열 제외)
         LINEN_ITEMS.forEach((item, rIdx) => {
           const y = startY + theadHeight + rIdx * rowHeight;
           curX = padX;
@@ -1148,70 +1141,10 @@
             }
             curX += w;
           });
-
-          // 마지막 열: 품목 합계
-          const wLast = colWidths[colWidths.length - 1];
-          const totPieces = itemTotals[item.key]?.totalAllocated ?? 0;
-          const totLabel = formatSummaryValue(totPieces, item);
-          ctx.fillStyle = item.isQH ? '#fde68a' : '#eff6ff';
-          ctx.fillRect(curX, y, wLast, rowHeight);
-          ctx.strokeStyle = '#cbd5e1';
-          ctx.strokeRect(curX, y, wLast, rowHeight);
-
-          ctx.fillStyle = item.isQH ? '#78350f' : '#1d4ed8';
-          ctx.font = totLabel.length > 7
-            ? 'bold 11.5px Inter, -apple-system, BlinkMacSystemFont, sans-serif'
-            : 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(totLabel, curX + wLast / 2, y + rowHeight / 2);
         });
 
-        // 하단 층별 총계 행 그리기
-        const footY = startY + theadHeight + LINEN_ITEMS.length * rowHeight;
-        curX = padX;
-
-        ctx.fillStyle = '#e2e8f0';
-        ctx.fillRect(curX, footY, colWidths[0], tfootHeight);
-        ctx.strokeStyle = '#94a3b8';
-        ctx.strokeRect(curX, footY, colWidths[0], tfootHeight);
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('층별 총계 (장)', curX + 12, footY + tfootHeight / 2);
-        curX += colWidths[0];
-
-        let grandTotal = 0;
-        FLOOR_CONFIG.forEach((cfg, fIdx) => {
-          const w = colWidths[fIdx + 1];
-          let floorSum = 0;
-          LINEN_ITEMS.forEach(item => {
-            if (item.needHandTowel && !cfg.hasHandTowel) return;
-            floorSum += floorAllocations[cfg.floor][item.key]?.pieces ?? 0;
-          });
-          grandTotal += floorSum;
-
-          ctx.fillStyle = '#f1f5f9';
-          ctx.fillRect(curX, footY, w, tfootHeight);
-          ctx.strokeStyle = '#94a3b8';
-          ctx.strokeRect(curX, footY, w, tfootHeight);
-          ctx.fillStyle = '#0f172a';
-          ctx.font = 'bold 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${floorSum}장`, curX + w / 2, footY + tfootHeight / 2);
-          curX += w;
-        });
-
-        const wLast = colWidths[colWidths.length - 1];
-        ctx.fillStyle = '#dbeafe';
-        ctx.fillRect(curX, footY, wLast, tfootHeight);
-        ctx.strokeStyle = '#94a3b8';
-        ctx.strokeRect(curX, footY, wLast, tfootHeight);
-        ctx.fillStyle = '#1e40af';
-        ctx.font = 'bold 13.5px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${grandTotal}장`, curX + wLast / 2, footY + tfootHeight / 2);
-
-        // 하단 안내 문구
+        // 하단 안내 문구 (층별 총계 행 제거 후 바로 배치)
+        const noteY = startY + theadHeight + LINEN_ITEMS.length * rowHeight + 22;
         ctx.fillStyle = '#64748b';
         ctx.font = '500 11px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.textAlign = 'left';
@@ -1220,7 +1153,7 @@
             ? '※ 단 기준: 시트·배스타월 10장 / 커버 5장 / 페이스타월·발매트 20장 / 베개커버·핸드타월 50장 (★ Q·H는 장 고정)'
             : '※ ★ 표기 품목(Q·H 시트 및 커버)은 집중 관리 품목입니다.',
           padX,
-          footY + tfootHeight + 22
+          noteY
         );
 
         // 이미지 데이터 바인딩 및 모달 표시
@@ -1380,6 +1313,13 @@
         document.getElementById('btn-back-to-2').addEventListener('click', () => goToStep(2));
         document.getElementById('btn-copy-summary').addEventListener('click', copyDistributionSummary);
         document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+        // 요약표 우측 '합계' 열 표시/숨김 토글
+        document.getElementById('btn-toggle-summary-total').addEventListener('click', () => {
+          state.showSummaryTotal = !state.showSummaryTotal;
+          renderStep3();
+          showToast(state.showSummaryTotal ? '요약표 우측 합계 열이 표시됩니다.' : '요약표 우측 합계 열이 숨겨졌습니다.');
+        });
 
         // 요약표 이미지 보기 / 닫기 / 모바일 공유 이벤트
         document.getElementById('btn-export-summary-img').addEventListener('click', openSummaryImageModal);
